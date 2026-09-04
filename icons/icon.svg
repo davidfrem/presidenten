@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title">
+  <title>Presidenten</title>
+  <rect width="512" height="512" rx="112" fill="#064821"/>
+  <circle cx="256" cy="256" r="204" fill="#0d6a35"/>
+  <path d="M128 188h256v172H128z" fill="#fffaf1" opacity=".14"/>
+  <g transform="translate(139 112) rotate(-9 117 144)">
+    <rect x="0" y="0" width="176" height="252" rx="18" fill="#fffaf1"/>
+    <text x="28" y="62" font-family="Arial, sans-serif" font-size="52" font-weight="800" fill="#171b1e">A</text>
+    <text x="118" y="218" font-family="Arial, sans-serif" font-size="62" font-weight="800" fill="#171b1e">♠</text>
+  </g>
+  <g transform="translate(205 128) rotate(8 117 144)">
+    <rect x="0" y="0" width="176" height="252" rx="18" fill="#fffaf1"/>
+    <text x="28" y="62" font-family="Arial, sans-serif" font-size="52" font-weight="800" fill="#e24545">K</text>
+    <text x="116" y="218" font-family="Arial, sans-serif" font-size="62" font-weight="800" fill="#e24545">♥</text>
+  </g>
+  <path d="M162 374h188l-28 48H190z" fill="#ffd764"/>
+</svg>
