@@ -493,6 +493,11 @@ h1 {
   box-shadow: 0 22px 28px rgba(0, 0, 0, 0.38);
 }
 
+.card.locked {
+  cursor: default;
+  box-shadow: 0 0 0 4px rgba(255, 215, 100, 0.8), 0 22px 28px rgba(0, 0, 0, 0.38);
+}
+
 .card.disabled {
   cursor: default;
   opacity: 0.72;

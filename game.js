@@ -284,12 +284,17 @@ function queueChoiceExchange(items) {
   const from = state.players[next.fromId];
   const to = state.players[next.toId];
   if (from.id === 0) {
-    exchange = { ...next, remaining: items, selected: new Set() };
+    exchange = { ...next, mode: "choiceReturn", remaining: items, selected: new Set() };
     renderExchange(from, to, next.count);
   } else {
     const cards = worstCards(from.hand, next.count);
     transfer(from, to, cards);
     state.log.unshift(`${from.name} geeft ${next.count} kaart${next.count > 1 ? "en" : ""} terug.`);
+    if (to.id === 0) {
+      exchange = { ...next, mode: "forcedBest", remaining: items };
+      renderForcedBestExchange(to, from, next.incomingCards);
+      return;
+    }
     receiveBestCards(to, from, next.incomingCards);
     queueChoiceExchange(items);
   }
@@ -524,7 +529,26 @@ function renderExchange(from, to, count) {
     });
     hand.append(button);
   });
+  document.getElementById("exchangeConfirm").textContent = "Bevestig";
   document.getElementById("exchangeConfirm").disabled = exchange.selected.size !== count;
+  if (!dialog.open) dialog.showModal();
+}
+
+function renderForcedBestExchange(from, to, cards) {
+  const dialog = document.getElementById("exchangeDialog");
+  const markedIds = new Set(cards.map((card) => card.id));
+  document.getElementById("exchangeTitle").textContent = `${from.role}: beste kaarten afgeven`;
+  document.getElementById("exchangeText").textContent = `Je geeft ${cards.length} beste kaart${cards.length > 1 ? "en" : ""} aan ${to.name}.`;
+  const hand = document.getElementById("exchangeHand");
+  hand.innerHTML = "";
+  from.hand.forEach((card) => {
+    const button = renderCard(card);
+    button.classList.toggle("selected", markedIds.has(card.id));
+    button.classList.toggle("locked", markedIds.has(card.id));
+    hand.append(button);
+  });
+  document.getElementById("exchangeConfirm").textContent = "Geef af";
+  document.getElementById("exchangeConfirm").disabled = false;
   if (!dialog.open) dialog.showModal();
 }
 
@@ -660,6 +684,15 @@ function initBrowserGame() {
   document.getElementById("exchangeConfirm").addEventListener("click", () => {
     const from = state.players[exchange.fromId];
     const to = state.players[exchange.toId];
+    if (exchange.mode === "forcedBest") {
+      receiveBestCards(to, from, exchange.incomingCards);
+      document.getElementById("exchangeDialog").close();
+      const remaining = exchange.remaining;
+      exchange = null;
+      queueChoiceExchange(remaining);
+      return;
+    }
+
     const cards = from.hand.filter((card) => exchange.selected.has(card.id));
     transfer(from, to, cards);
     state.log.unshift(`${from.name} geeft ${cards.length} kaart${cards.length > 1 ? "en" : ""} terug.`);
