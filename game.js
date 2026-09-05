@@ -556,16 +556,26 @@ function showSettingsDialog() {
 
 function renderNameKeyboard() {
   const keyboard = document.getElementById("nameKeyboard");
-  const keys = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "R", "S", "T", "V", "W", "IJ", "Spatie", "Wis"];
+  const rows = [
+    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
+    ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
+    ["Z", "X", "C", "V", "B", "N", "M"],
+    ["Spatie", "Wis"]
+  ];
   keyboard.innerHTML = "";
 
-  keys.forEach((key) => {
-    const button = document.createElement("button");
-    button.type = "button";
-    button.className = "name-key";
-    button.textContent = key;
-    button.addEventListener("click", () => updateNameFromKey(key));
-    keyboard.append(button);
+  rows.forEach((row) => {
+    const rowNode = document.createElement("div");
+    rowNode.className = "name-key-row";
+    row.forEach((key) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "name-key";
+      button.textContent = key;
+      button.addEventListener("click", () => updateNameFromKey(key));
+      rowNode.append(button);
+    });
+    keyboard.append(rowNode);
   });
 }
 

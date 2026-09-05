@@ -656,11 +656,17 @@ dialog menu {
 
 .name-keyboard {
   display: grid;
-  grid-template-columns: repeat(8, minmax(0, 1fr));
   gap: 6px;
 }
 
+.name-key-row {
+  display: flex;
+  justify-content: center;
+  gap: 5px;
+}
+
 .name-key {
+  width: 34px;
   min-height: 34px;
   border: 1px solid rgba(255, 255, 255, 0.18);
   border-radius: 7px;
@@ -671,8 +677,12 @@ dialog menu {
   cursor: pointer;
 }
 
-.name-key:nth-last-child(-n + 2) {
-  grid-column: span 2;
+.name-key-row:last-child .name-key:first-child {
+  width: 150px;
+}
+
+.name-key-row:last-child .name-key:last-child {
+  width: 74px;
 }
 
 .exchange-hand {
