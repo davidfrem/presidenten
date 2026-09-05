@@ -544,9 +544,14 @@ function showRoundDialog() {
 
 function showSettingsDialog() {
   const dialog = document.getElementById("settingsDialog");
-  document.getElementById("playerNameInput").value = settings.playerName === defaultSettings.playerName ? "" : settings.playerName;
+  const playerNameInput = document.getElementById("playerNameInput");
+  playerNameInput.value = settings.playerName === defaultSettings.playerName ? "" : settings.playerName;
   document.getElementById("botSkillSelect").value = settings.botSkill;
   dialog.hidden = false;
+  requestAnimationFrame(() => {
+    playerNameInput.focus({ preventScroll: true });
+    playerNameInput.select();
+  });
 }
 
 function closeSettingsDialog() {
