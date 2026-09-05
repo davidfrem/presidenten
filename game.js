@@ -341,10 +341,14 @@ function renderPlayers() {
   state.players.forEach((player) => {
     const node = document.getElementById(`player-${player.id}`);
     if (!node) return;
+    const roundRole = getCurrentRoundRole(player.id);
     node.classList.toggle("is-turn", state.currentPlayerId === player.id);
+    node.classList.toggle("has-finished", Boolean(roundRole));
 
     if (player.id === 0) {
-      document.getElementById("humanRole").textContent = player.role;
+      document.getElementById("humanRole").textContent = roundRole ? "Uit" : player.role;
+      document.getElementById("humanFinishBadge").textContent = roundRole ?? "";
+      document.getElementById("humanFinishBadge").classList.toggle("is-visible", Boolean(roundRole));
       document.getElementById("humanPassBadge").classList.toggle("is-visible", state.passedPlayerIds.has(player.id));
       renderPlayedPile(document.getElementById("humanPlayedPile"), player);
       return;
@@ -356,9 +360,10 @@ function renderPlayers() {
         <span class="player-avatar">${playerIcons[player.id]}</span>
         <div class="player-meta">
           <span class="player-name">${player.name}</span>
-          <span class="player-role">${player.role} - ${player.hand.length} kaart${player.hand.length === 1 ? "" : "en"}</span>
+          <span class="player-role">${roundRole ? "Uit" : `${player.role} - ${player.hand.length} kaart${player.hand.length === 1 ? "" : "en"}`}</span>
         </div>
         <span class="turn-badge">Beurt</span>
+        <span class="finish-badge${roundRole ? " is-visible" : ""}">${roundRole ?? ""}</span>
         <span class="pass-badge${state.passedPlayerIds.has(player.id) ? " is-visible" : ""}">Pas</span>
       </div>
       <div class="card-backs" aria-hidden="true">${backs}</div>
@@ -372,6 +377,11 @@ function renderPlayers() {
   document.getElementById("roundLabel").textContent = `Ronde ${state.round}`;
   document.getElementById("turnHint").textContent = getTurnHint();
   document.getElementById("player-0").classList.toggle("is-turn", state.currentPlayerId === 0);
+}
+
+function getCurrentRoundRole(playerId) {
+  const finishIndex = state.finishOrder.indexOf(playerId);
+  return finishIndex === -1 ? null : roleNames[finishIndex];
 }
 
 function renderHand() {

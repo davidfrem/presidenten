@@ -219,6 +219,27 @@ h1 {
   display: block;
 }
 
+.finish-badge {
+  position: absolute;
+  left: 58px;
+  bottom: -12px;
+  display: none;
+  min-width: 92px;
+  padding: 5px 10px;
+  border: 2px solid rgba(255, 255, 255, 0.82);
+  border-radius: 999px;
+  background: #ffd45f;
+  color: #241a07;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 950;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.finish-badge.is-visible {
+  display: block;
+}
+
 .pass-badge {
   position: absolute;
   right: -7px;
