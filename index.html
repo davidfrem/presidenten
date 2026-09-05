@@ -61,8 +61,8 @@
           <ol id="activityLog"></ol>
         </aside>
 
-        <dialog id="settingsDialog" class="settings-dialog">
-          <form id="settingsForm" method="dialog">
+        <div id="settingsDialog" class="settings-overlay" hidden>
+          <form id="settingsForm" class="settings-dialog">
             <h2>Instellingen</h2>
             <div class="settings-section">
               <label for="playerNameInput">Jouw naam</label>
@@ -75,11 +75,11 @@
               </select>
             </div>
             <menu>
-              <button class="secondary-button" value="cancel" type="button" id="settingsCancel">Annuleer</button>
-              <button class="primary-button" value="confirm" type="submit">Opslaan</button>
+              <button class="secondary-button" type="button" id="settingsCancel">Annuleer</button>
+              <button class="primary-button" type="submit">Opslaan</button>
             </menu>
           </form>
-        </dialog>
+        </div>
 
         <dialog id="exchangeDialog" class="exchange-dialog">
           <form method="dialog">

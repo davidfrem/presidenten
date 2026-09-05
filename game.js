@@ -546,7 +546,11 @@ function showSettingsDialog() {
   const dialog = document.getElementById("settingsDialog");
   document.getElementById("playerNameInput").value = settings.playerName === defaultSettings.playerName ? "" : settings.playerName;
   document.getElementById("botSkillSelect").value = settings.botSkill;
-  if (!dialog.open) dialog.showModal();
+  dialog.hidden = false;
+}
+
+function closeSettingsDialog() {
+  document.getElementById("settingsDialog").hidden = true;
 }
 
 function applySettingsFromForm() {
@@ -591,12 +595,14 @@ function initBrowserGame() {
   });
 
   document.getElementById("settingsCancel").addEventListener("click", () => {
-    document.getElementById("settingsDialog").close();
+    closeSettingsDialog();
     maybeRunBots();
   });
 
-  document.getElementById("settingsForm").addEventListener("submit", () => {
+  document.getElementById("settingsForm").addEventListener("submit", (event) => {
+    event.preventDefault();
     applySettingsFromForm();
+    closeSettingsDialog();
     maybeRunBots();
   });
 
