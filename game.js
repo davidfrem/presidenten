@@ -7,8 +7,14 @@ export const suits = [
 ];
 
 const roleNames = ["President", "Vice-president", "Vice-verliezer", "Verliezer"];
-const playerNames = ["Jij", "Sanne", "Daan", "Emma"];
+const SETTINGS_KEY = "presidenten.settings";
+const defaultSettings = {
+  playerName: "Jij",
+  botSkill: "normal"
+};
+const botNames = ["Sanne", "Daan", "Emma"];
 const playerIcons = ["👤", "🧢", "🎧", "⭐"];
+let settings = { ...defaultSettings };
 
 export function createDeck() {
   return ranks.flatMap((rank, rankIndex) =>
@@ -59,8 +65,12 @@ function removeCards(hand, cards) {
   return hand.filter((card) => !ids.has(card.id));
 }
 
+function getPlayerNames() {
+  return [settings.playerName, ...botNames];
+}
+
 function createPlayers(previousRoles = null) {
-  return playerNames.map((name, index) => ({
+  return getPlayerNames().map((name, index) => ({
     id: index,
     name,
     role: previousRoles?.[index] ?? "Burger",
@@ -143,6 +153,50 @@ let state = null;
 let selectedIds = new Set();
 let exchange = null;
 
+function loadSettings() {
+  if (typeof localStorage === "undefined") return { ...defaultSettings };
+
+  try {
+    const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
+    return normalizeSettings({ ...defaultSettings, ...stored });
+  } catch {
+    return { ...defaultSettings };
+  }
+}
+
+function saveSettings(nextSettings) {
+  settings = normalizeSettings({ ...defaultSettings, ...nextSettings });
+  if (typeof localStorage !== "undefined") {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      // Safari can block storage in some restricted modes; keep the session setting.
+    }
+  }
+}
+
+function hasStoredSettings() {
+  if (typeof localStorage === "undefined") return false;
+
+  try {
+    return localStorage.getItem(SETTINGS_KEY) !== null;
+  } catch {
+    return false;
+  }
+}
+
+function normalizeSettings(nextSettings) {
+  return {
+    playerName: normalizePlayerName(nextSettings.playerName),
+    botSkill: nextSettings.botSkill === "normal" ? "normal" : defaultSettings.botSkill
+  };
+}
+
+function normalizePlayerName(name) {
+  const clean = String(name ?? "").trim().replace(/\s+/g, " ");
+  return clean || defaultSettings.playerName;
+}
+
 function createInitialState() {
   const dealer = Math.floor(Math.random() * 4);
   const players = createPlayers();
@@ -158,7 +212,7 @@ function createInitialState() {
     consecutivePasses: 0,
     passedPlayerIds: new Set(),
     finishOrder: [],
-    log: [`${playerNames[openerId]} komt uit.`],
+    log: [`${players[openerId].name} komt uit.`],
     awaitingExchange: false
   };
 }
@@ -182,7 +236,7 @@ function startRoundFromPrevious() {
     consecutivePasses: 0,
     passedPlayerIds: new Set(),
     finishOrder: [],
-    log: [`${playerNames[loserId]} komt uit als verliezer.`],
+    log: [`${players[loserId].name} komt uit als verliezer.`],
     awaitingExchange: true
   };
 
@@ -350,6 +404,7 @@ function renderPlayers() {
     node.classList.toggle("has-finished", Boolean(roundRole));
 
     if (player.id === 0) {
+      document.getElementById("humanName").textContent = player.name;
       document.getElementById("humanRole").textContent = roundRole ? "Uit" : player.role;
       document.getElementById("humanFinishBadge").textContent = roundRole ?? "";
       document.getElementById("humanFinishBadge").classList.toggle("is-visible", Boolean(roundRole));
@@ -439,7 +494,7 @@ function renderLog() {
 
 function getTurnHint() {
   if (state.currentPlayerId !== 0) return "";
-  if (!state.currentPlay) return "Jij komt uit";
+  if (!state.currentPlay) return `${state.players[0].name} komt uit`;
   return `Speel ${state.currentPlay.cards.length} hoger of pas`;
 }
 
@@ -487,7 +542,28 @@ function showRoundDialog() {
   if (!dialog.open) dialog.showModal();
 }
 
+function showSettingsDialog() {
+  const dialog = document.getElementById("settingsDialog");
+  document.getElementById("playerNameInput").value = settings.playerName === defaultSettings.playerName ? "" : settings.playerName;
+  document.getElementById("botSkillSelect").value = settings.botSkill;
+  if (!dialog.open) dialog.showModal();
+}
+
+function applySettingsFromForm() {
+  const playerName = document.getElementById("playerNameInput").value;
+  const botSkill = document.getElementById("botSkillSelect").value;
+  saveSettings({ playerName, botSkill });
+
+  if (state?.players?.[0]) {
+    state.players[0].name = settings.playerName;
+  }
+
+  render();
+}
+
 function initBrowserGame() {
+  const shouldAskSettings = !hasStoredSettings();
+  settings = loadSettings();
   state = createInitialState();
 
   document.getElementById("playButton").addEventListener("click", () => {
@@ -507,6 +583,20 @@ function initBrowserGame() {
     state = createInitialState();
     document.getElementById("roundDialog").close();
     render();
+    maybeRunBots();
+  });
+
+  document.getElementById("settingsButton").addEventListener("click", () => {
+    showSettingsDialog();
+  });
+
+  document.getElementById("settingsCancel").addEventListener("click", () => {
+    document.getElementById("settingsDialog").close();
+    maybeRunBots();
+  });
+
+  document.getElementById("settingsForm").addEventListener("submit", () => {
+    applySettingsFromForm();
     maybeRunBots();
   });
 
@@ -530,7 +620,11 @@ function initBrowserGame() {
   });
 
   render();
-  maybeRunBots();
+  if (shouldAskSettings) {
+    showSettingsDialog();
+  } else {
+    maybeRunBots();
+  }
 }
 
 if (typeof document !== "undefined") {

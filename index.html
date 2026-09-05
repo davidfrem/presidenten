@@ -23,6 +23,7 @@
             <p id="roundLabel">Ronde 1</p>
           </div>
           <div class="topbar-actions">
+            <button id="settingsButton" class="ghost-button" type="button">Instellingen</button>
             <button id="newGameButton" class="ghost-button" type="button">Nieuw spel</button>
           </div>
         </div>
@@ -37,7 +38,7 @@
           <div class="hand-header">
             <div class="human-pill">
               <span class="player-avatar human-avatar">👤</span>
-              <h2>Jij</h2>
+              <h2 id="humanName">Jij</h2>
               <p id="humanRole">Burger</p>
               <span id="humanFinishBadge" class="finish-badge"></span>
               <span id="humanPassBadge" class="pass-badge">Pas</span>
@@ -59,6 +60,26 @@
           <div class="pile-title">Verloop</div>
           <ol id="activityLog"></ol>
         </aside>
+
+        <dialog id="settingsDialog" class="settings-dialog">
+          <form id="settingsForm" method="dialog">
+            <h2>Instellingen</h2>
+            <div class="settings-section">
+              <label for="playerNameInput">Jouw naam</label>
+              <input id="playerNameInput" name="playerName" type="text" maxlength="18" autocomplete="name" placeholder="Jij">
+            </div>
+            <div class="settings-section">
+              <label for="botSkillSelect">Botniveau</label>
+              <select id="botSkillSelect" name="botSkill">
+                <option value="normal">Normaal</option>
+              </select>
+            </div>
+            <menu>
+              <button class="secondary-button" value="cancel" type="button" id="settingsCancel">Annuleer</button>
+              <button class="primary-button" value="confirm" type="submit">Opslaan</button>
+            </menu>
+          </form>
+        </dialog>
 
         <dialog id="exchangeDialog" class="exchange-dialog">
           <form method="dialog">
