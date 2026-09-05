@@ -426,7 +426,7 @@ function getTurnHint() {
 function updateControls() {
   const selectedCards = state.players[0].hand.filter((card) => selectedIds.has(card.id));
   document.getElementById("playButton").disabled = state.currentPlayerId !== 0 || !isValidPlay(selectedCards, state.currentPlay);
-  document.getElementById("passButton").disabled = state.currentPlayerId !== 0 || !state.currentPlay;
+  document.getElementById("passButton").disabled = state.currentPlayerId !== 0 || !state.currentPlay || selectedIds.size > 0;
 }
 
 function renderExchange(from, to, count) {
@@ -477,6 +477,7 @@ function initBrowserGame() {
   });
 
   document.getElementById("passButton").addEventListener("click", () => {
+    if (selectedIds.size > 0) return;
     selectedIds = new Set();
     passTurn(0);
   });
