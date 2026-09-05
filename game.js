@@ -554,6 +554,35 @@ function showSettingsDialog() {
   });
 }
 
+function renderNameKeyboard() {
+  const keyboard = document.getElementById("nameKeyboard");
+  const keys = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J", "K", "L", "M", "N", "O", "P", "R", "S", "T", "V", "W", "IJ", "Spatie", "Wis"];
+  keyboard.innerHTML = "";
+
+  keys.forEach((key) => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "name-key";
+    button.textContent = key;
+    button.addEventListener("click", () => updateNameFromKey(key));
+    keyboard.append(button);
+  });
+}
+
+function updateNameFromKey(key) {
+  const input = document.getElementById("playerNameInput");
+  if (key === "Wis") {
+    input.value = input.value.slice(0, -1);
+  } else if (key === "Spatie") {
+    input.value = `${input.value} `;
+  } else if (input.value.length <= input.maxLength - key.length) {
+    input.value = `${input.value}${key}`;
+  }
+
+  input.dispatchEvent(new Event("input", { bubbles: true }));
+  input.focus({ preventScroll: true });
+}
+
 function closeSettingsDialog() {
   document.getElementById("settingsDialog").hidden = true;
 }
@@ -574,6 +603,7 @@ function initBrowserGame() {
   const shouldAskSettings = !hasStoredSettings();
   settings = loadSettings();
   state = createInitialState();
+  renderNameKeyboard();
 
   document.getElementById("playButton").addEventListener("click", () => {
     const cards = state.players[0].hand.filter((card) => selectedIds.has(card.id));

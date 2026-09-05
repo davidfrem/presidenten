@@ -654,6 +654,27 @@ dialog menu {
   user-select: text;
 }
 
+.name-keyboard {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.name-key {
+  min-height: 34px;
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 7px;
+  background: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.name-key:nth-last-child(-n + 2) {
+  grid-column: span 2;
+}
+
 .exchange-hand {
   justify-content: flex-start;
   margin-top: 14px;
