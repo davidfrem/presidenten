@@ -156,6 +156,7 @@ function createInitialState() {
     currentPlay: null,
     lastPlayPlayerId: null,
     consecutivePasses: 0,
+    passedPlayerIds: new Set(),
     finishOrder: [],
     log: [`${playerNames[openerId]} komt uit.`],
     awaitingExchange: false
@@ -179,6 +180,7 @@ function startRoundFromPrevious() {
     currentPlay: null,
     lastPlayPlayerId: null,
     consecutivePasses: 0,
+    passedPlayerIds: new Set(),
     finishOrder: [],
     log: [`${playerNames[loserId]} komt uit als verliezer.`],
     awaitingExchange: true
@@ -260,6 +262,7 @@ function playCards(playerId, cards) {
   state.currentPlay = { playerId, cards, rankIndex: cards[0].rankIndex };
   state.lastPlayPlayerId = playerId;
   state.consecutivePasses = 0;
+  state.passedPlayerIds = new Set();
   state.log.unshift(`${player.name} speelt ${formatCards(cards)}.`);
 
   if (player.hand.length === 0) {
@@ -275,6 +278,7 @@ function playCards(playerId, cards) {
 function passTurn(playerId) {
   if (!state.currentPlay) return false;
   state.consecutivePasses += 1;
+  state.passedPlayerIds.add(playerId);
   state.log.unshift(`${state.players[playerId].name} past.`);
   advanceTurnAfterAction(playerId);
   return true;
@@ -341,6 +345,7 @@ function renderPlayers() {
 
     if (player.id === 0) {
       document.getElementById("humanRole").textContent = player.role;
+      document.getElementById("humanPassBadge").classList.toggle("is-visible", state.passedPlayerIds.has(player.id));
       renderPlayedPile(document.getElementById("humanPlayedPile"), player);
       return;
     }
@@ -354,6 +359,7 @@ function renderPlayers() {
           <span class="player-role">${player.role} - ${player.hand.length} kaart${player.hand.length === 1 ? "" : "en"}</span>
         </div>
         <span class="turn-badge">Beurt</span>
+        <span class="pass-badge${state.passedPlayerIds.has(player.id) ? " is-visible" : ""}">Pas</span>
       </div>
       <div class="card-backs" aria-hidden="true">${backs}</div>
       <div class="personal-pile-wrap">

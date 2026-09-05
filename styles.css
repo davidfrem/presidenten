@@ -219,6 +219,28 @@ h1 {
   display: block;
 }
 
+.pass-badge {
+  position: absolute;
+  right: -7px;
+  bottom: -10px;
+  display: none;
+  min-width: 50px;
+  padding: 5px 9px;
+  border: 2px solid rgba(255, 255, 255, 0.8);
+  border-radius: 999px;
+  background: #e94b4b;
+  color: #fff;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 950;
+  text-transform: uppercase;
+  box-shadow: 0 8px 18px rgba(0, 0, 0, 0.28);
+}
+
+.pass-badge.is-visible {
+  display: block;
+}
+
 .card-backs {
   display: flex;
   height: 72px;
