@@ -262,11 +262,11 @@ function playCards(playerId, cards) {
   state.currentPlay = { playerId, cards, rankIndex: cards[0].rankIndex };
   state.lastPlayPlayerId = playerId;
   state.consecutivePasses = 0;
-  state.passedPlayerIds = new Set();
   state.log.unshift(`${player.name} speelt ${formatCards(cards)}.`);
 
   if (player.hand.length === 0) {
     player.finished = true;
+    state.passedPlayerIds.delete(playerId);
     state.finishOrder.push(playerId);
     state.log.unshift(`${player.name} is uit.`);
   }
@@ -307,6 +307,10 @@ function advanceTurnAfterAction(playerId, forceTrickWin = false) {
     state.log.unshift(`${state.players[opener].name} wint de slag en komt uit.`);
   } else {
     state.currentPlayerId = nextClockwisePlayerWithCards(state.players, playerId);
+  }
+
+  if (state.currentPlayerId !== null) {
+    state.passedPlayerIds.delete(state.currentPlayerId);
   }
 
   render();
