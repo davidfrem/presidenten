@@ -48,7 +48,8 @@ function waitFor(client, predicate, timeout = 10_000) {
   });
 }
 
-const child = spawn(process.execPath, ["server.js"], {
+const externalUrl = process.env.TEST_WS_URL;
+const child = externalUrl ? null : spawn(process.execPath, ["server.js"], {
   cwd: import.meta.dirname,
   env: { ...process.env, HOST: "127.0.0.1", PORT: "0" },
   stdio: ["ignore", "pipe", "inherit"]
@@ -57,8 +58,8 @@ const child = spawn(process.execPath, ["server.js"], {
 let first;
 let second;
 try {
-  const port = await waitForServer(child);
-  const url = `ws://127.0.0.1:${port}/multiplayer`;
+  const port = child ? await waitForServer(child) : null;
+  const url = externalUrl || `ws://127.0.0.1:${port}/multiplayer`;
   first = await connect(url);
   first.socket.send(JSON.stringify({ type: "createRoom", name: "David", botSkill: "medium" }));
   const joinedFirst = await waitFor(first, (message) => message.type === "joined");
@@ -81,5 +82,5 @@ try {
 } finally {
   first?.socket.close();
   second?.socket.close();
-  child.kill("SIGTERM");
+  child?.kill("SIGTERM");
 }
