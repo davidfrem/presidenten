@@ -1,7 +1,10 @@
+import { isValidPlay } from "./game.js";
+import { loadSettings } from "./settings.js";
+import { createBadge, createCardElement, renderPileCards } from "./ui-components.js";
+
 const roleNames = ["President", "Vice-president", "Vice-verliezer", "Verliezer"];
 const playerIcons = ["👤", "🧢", "🎧", "⭐"];
 const SESSION_KEY = "presidenten.multiplayerSession";
-const SETTINGS_KEY = "presidenten.settings";
 
 let socket;
 let view = null;
@@ -10,13 +13,22 @@ let exchangeSelectedIds = new Set();
 let reconnectAttempt = false;
 let shouldReconnect = true;
 let reconnectDelay = 1500;
+let initialized = false;
+let onLeave = () => {};
 
 const elements = {};
 
-function init() {
+export function initMultiplayer(options = {}) {
+  onLeave = options.onLeave || onLeave;
+  shouldReconnect = true;
+  if (initialized) {
+    if (!socket || socket.readyState === WebSocket.CLOSED) connect();
+    return;
+  }
+  initialized = true;
   [
     "connectionBadge", "leaveButton", "multiplayerLobby", "joinPanel", "waitingPanel", "lobbyName",
-    "roomCodeInput", "createRoomButton", "joinRoomButton", "roomCodeLabel", "lobbyPlayers",
+    "lobbyBotSkill", "lobbySettingsButton", "roomCodeInput", "createRoomButton", "joinRoomButton", "roomCodeLabel", "lobbyPlayers",
     "botFillText", "startRoomButton", "hostWaitingText", "lobbyError", "mpRoundLabel", "mpHumanAvatar", "mpHumanName",
     "mpHumanRole", "mpHumanFinishBadge", "mpHumanPassBadge", "mpHumanPlayedPile", "mpHand",
     "mpTurnHint", "mpPlayButton", "mpPassButton", "mpActivityLog", "mpExchangeDialog",
@@ -24,12 +36,13 @@ function init() {
     "mpResultsList", "mpRoundWaiting", "mpContinueButton"
   ].forEach((id) => { elements[id] = document.getElementById(id); });
 
-  elements.lobbyName.value = loadPlayerName();
+  applyLobbySettings(loadSettings());
   elements.roomCodeInput.addEventListener("input", () => {
     elements.roomCodeInput.value = elements.roomCodeInput.value.toUpperCase().replace(/[^A-Z0-9]/g, "");
   });
   elements.createRoomButton.addEventListener("click", () => sendLobbyAction("createRoom"));
   elements.joinRoomButton.addEventListener("click", () => sendLobbyAction("joinRoom"));
+  elements.lobbySettingsButton.addEventListener("click", () => window.dispatchEvent(new Event("presidenten:open-settings")));
   elements.startRoomButton.addEventListener("click", () => send({ type: "startGame" }));
   elements.leaveButton.addEventListener("click", leaveGame);
   elements.mpPlayButton.addEventListener("click", playSelectedCards);
@@ -38,14 +51,18 @@ function init() {
   });
   elements.mpContinueButton.addEventListener("click", () => send({ type: "nextRound" }));
   elements.mpExchangeConfirm.addEventListener("click", confirmExchange);
+  window.addEventListener("presidenten:settings-changed", (event) => {
+    applyLobbySettings(event.detail);
+    if (view) send({ type: "updateName", name: event.detail.playerName });
+  });
   connect();
 }
 
 function connect() {
-  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
-  socket = new WebSocket(`${protocol}//${location.host}/multiplayer`);
+  const currentSocket = new WebSocket(multiplayerSocketUrl());
+  socket = currentSocket;
   setConnection("Verbinden...", false);
-  socket.addEventListener("open", () => {
+  currentSocket.addEventListener("open", () => {
     reconnectDelay = 1500;
     setConnection("Verbonden", true);
     const saved = loadSession();
@@ -54,14 +71,15 @@ function connect() {
       send({ type: "reconnect", ...saved });
     }
   });
-  socket.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
-  socket.addEventListener("close", () => {
+  currentSocket.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
+  currentSocket.addEventListener("close", () => {
+    if (socket === currentSocket) socket = null;
     setConnection("Verbinding verbroken", false);
     if (!shouldReconnect) return;
     setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.6, 10_000);
   });
-  socket.addEventListener("error", () => setConnection("Geen verbinding", false));
+  currentSocket.addEventListener("error", () => setConnection("Geen verbinding", false));
 }
 
 function handleMessage(message) {
@@ -92,7 +110,6 @@ function sendLobbyAction(type) {
   showError("");
   const name = elements.lobbyName.value.trim();
   if (!name) return showError("Vul eerst je naam in.");
-  savePlayerName(name);
   if (type === "joinRoom" && elements.roomCodeInput.value.length !== 5) {
     return showError("Vul de kamercode van vijf tekens in.");
   }
@@ -100,7 +117,7 @@ function sendLobbyAction(type) {
     type,
     name,
     code: elements.roomCodeInput.value,
-    botSkill: loadBotSkill()
+    botSkill: elements.lobbyBotSkill.value
   });
 }
 
@@ -238,16 +255,10 @@ function renderControls() {
 }
 
 function renderPile(node, player) {
-  node.innerHTML = "";
   const activeIds = view.currentPlay?.playerId === player.id
     ? new Set(view.currentPlay.cards.map((card) => card.id))
     : new Set();
-  [...player.playedPile].reverse().forEach((card) => {
-    const item = document.createElement("span");
-    item.className = `pile-card${card.red ? " red" : ""}${activeIds.has(card.id) ? " latest-play" : ""}`;
-    item.innerHTML = `<span class="pile-card-rank">${card.rank}</span><span class="pile-card-suit">${card.suit}</span>`;
-    node.append(item);
-  });
+  renderPileCards(node, player.playedPile, activeIds);
 }
 
 function renderLog() {
@@ -338,10 +349,7 @@ function playSelectedCards() {
 }
 
 function isValidSelection(cards, currentPlay) {
-  if (cards.length < 1 || cards.length > 4) return false;
-  if (!cards.every((card) => card.rankIndex === cards[0].rankIndex)) return false;
-  if (!currentPlay) return true;
-  return cards.length === currentPlay.cards.length && cards[0].rankIndex > currentPlay.rankIndex;
+  return isValidPlay(cards, currentPlay);
 }
 
 function currentRoundRole(playerId) {
@@ -354,19 +362,11 @@ function relativePosition(playerId) {
 }
 
 function renderCard(card) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `card${card.red ? " red" : ""}`;
-  button.dataset.cardId = card.id;
-  button.innerHTML = `<span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span>`;
-  return button;
+  return createCardElement(card);
 }
 
 function makeBadge(className, text) {
-  const badge = document.createElement("span");
-  badge.className = className;
-  badge.textContent = text;
-  return badge;
+  return createBadge(className, text);
 }
 
 function setConnection(text, connected) {
@@ -384,35 +384,13 @@ function showError(message) {
 }
 
 function leaveGame() {
-  shouldReconnect = false;
-  clearSession();
-  socket?.close();
-  location.href = "/";
+  onLeave();
 }
 
-function loadPlayerName() {
-  try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}").playerName || "";
-  } catch {
-    return "";
-  }
-}
-
-function savePlayerName(playerName) {
-  try {
-    const settings = JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}");
-    localStorage.setItem(SETTINGS_KEY, JSON.stringify({ ...settings, playerName }));
-  } catch {
-    // The name still remains available for this session.
-  }
-}
-
-function loadBotSkill() {
-  try {
-    return JSON.parse(localStorage.getItem(SETTINGS_KEY) || "{}").botSkill || "beginner";
-  } catch {
-    return "beginner";
-  }
+function applyLobbySettings(settings) {
+  if (!elements.lobbyName) return;
+  elements.lobbyName.value = settings.playerName;
+  elements.lobbyBotSkill.value = settings.botSkill;
 }
 
 function loadSession() {
@@ -439,4 +417,30 @@ function clearSession() {
   }
 }
 
-init();
+export function hasActiveRoom() {
+  return Boolean(view || loadSession());
+}
+
+export function stopMultiplayer({ clearStoredSession = false } = {}) {
+  shouldReconnect = false;
+  if (clearStoredSession) clearSession();
+  socket?.close();
+  socket = null;
+  view = null;
+  selectedIds = new Set();
+  exchangeSelectedIds = new Set();
+  if (elements.joinPanel) {
+    elements.joinPanel.hidden = false;
+    elements.waitingPanel.hidden = true;
+    elements.multiplayerLobby.hidden = false;
+    showError("");
+  }
+}
+
+function multiplayerSocketUrl() {
+  if (location.hostname === "presidenten.fremeijer.net") {
+    return "wss://samen.presidenten.fremeijer.net/multiplayer";
+  }
+  const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+  return `${protocol}//${location.host}/multiplayer`;
+}

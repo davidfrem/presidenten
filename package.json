@@ -1,10 +1,11 @@
 {
   "name": "presidenten",
-  "version": "1.2.0-beta.0",
+  "version": "2.0.0-beta.1",
   "private": true,
   "type": "module",
   "scripts": {
     "test": "node test-engine.mjs && node test-multiplayer.mjs",
+    "test:integration": "node test-server.mjs",
     "start": "node server.js",
     "start:static": "python3 -m http.server 4173"
   },

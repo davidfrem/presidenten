@@ -15,108 +15,116 @@
     <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="table-shell">
-      <section class="game-table" aria-label="Presidenten speeltafel">
+    <main id="homeScreen" class="table-shell">
+      <section class="game-table mode-table" aria-labelledby="appTitle">
+        <header class="mode-header">
+          <div><h1 id="appTitle">Presidenten</h1><p>Kies een spel</p></div>
+          <button class="ghost-button" type="button" data-open-settings>Instellingen</button>
+        </header>
+        <div class="mode-choice" aria-label="Spelmodus kiezen">
+          <button id="soloModeButton" class="mode-button mode-button-primary" type="button">
+            <span class="mode-icon" aria-hidden="true">👤</span>
+            <strong>Alleen spelen</strong>
+            <span>Tegen drie bots</span>
+          </button>
+          <button id="multiplayerModeButton" class="mode-button" type="button">
+            <span class="mode-icon mode-icon-group" aria-hidden="true">👥</span>
+            <strong>Samen spelen</strong>
+            <span>Maak een kamer of doe mee</span>
+          </button>
+        </div>
+        <div class="version-label app-version" aria-label="Versie"></div>
+      </section>
+    </main>
+
+    <main id="soloScreen" class="table-shell" hidden>
+      <section class="game-table" aria-label="Presidenten alleen spelen">
         <div class="topbar">
-          <div>
-            <h1>Presidenten</h1>
-            <p id="roundLabel">Ronde 1</p>
-          </div>
+          <div><h1>Presidenten</h1><p id="roundLabel">Ronde 1 · alleen</p></div>
           <div class="topbar-actions">
-            <a class="ghost-button ghost-link" href="multiplayer.html">Samen spelen</a>
-            <button id="settingsButton" class="ghost-button" type="button">Instellingen</button>
+            <button class="icon-button" type="button" data-go-home title="Terug naar start" aria-label="Terug naar start">←</button>
+            <button id="settingsButton" class="ghost-button" type="button" data-open-settings>Instellingen</button>
             <button id="newGameButton" class="ghost-button" type="button">Nieuw spel</button>
           </div>
         </div>
-
         <div class="players-grid">
           <article class="opponent opponent-left" id="player-3"></article>
           <article class="opponent opponent-top" id="player-2"></article>
           <article class="opponent opponent-right" id="player-1"></article>
         </div>
-
         <section class="human-area" id="player-0">
           <div class="hand-header">
             <div class="human-pill">
-              <span class="player-avatar human-avatar">👤</span>
-              <h2 id="humanName">Jij</h2>
-              <p id="humanRole">Burger</p>
-              <span id="humanFinishBadge" class="finish-badge"></span>
-              <span id="humanPassBadge" class="pass-badge">Pas</span>
+              <span class="player-avatar human-avatar">👤</span><h2 id="humanName">Jij</h2><p id="humanRole">Burger</p>
+              <span id="humanFinishBadge" class="finish-badge"></span><span id="humanPassBadge" class="pass-badge">Pas</span>
             </div>
-            <div class="personal-pile-wrap">
-              <div id="humanPlayedPile" class="played-pile played-pile-human"></div>
-            </div>
+            <div class="personal-pile-wrap"><div id="humanPlayedPile" class="played-pile played-pile-human"></div></div>
           </div>
-          <div class="hand-row">
-            <div id="hand" class="hand" aria-label="Je hand"></div>
-            <div id="turnHint" class="turn-hint"></div>
-          </div>
+          <div class="hand-row"><div id="hand" class="hand" aria-label="Je hand"></div><div id="turnHint" class="turn-hint"></div></div>
         </section>
-
-        <div class="controls">
-          <button id="playButton" class="primary-button" type="button" disabled>Speel</button>
-          <button id="passButton" class="secondary-button" type="button" disabled>Pas</button>
-        </div>
-
-        <aside class="activity-panel" aria-live="polite">
-          <div class="pile-title">Verloop</div>
-          <ol id="activityLog"></ol>
-        </aside>
-
-        <div id="versionLabel" class="version-label" aria-label="Versie"></div>
-
+        <div class="controls"><button id="playButton" class="primary-button" type="button" disabled>Speel</button><button id="passButton" class="secondary-button" type="button" disabled>Pas</button></div>
+        <aside class="activity-panel" aria-live="polite"><div class="pile-title">Verloop</div><ol id="activityLog"></ol></aside>
+        <div id="versionLabel" class="version-label app-version" aria-label="Versie"></div>
         <dialog id="exchangeDialog" class="exchange-dialog">
-          <form method="dialog">
-            <h2 id="exchangeTitle">Kaarten teruggeven</h2>
-            <p id="exchangeText"></p>
-            <div id="exchangeHand" class="hand exchange-hand"></div>
-            <menu>
-              <button id="exchangeConfirm" class="primary-button" value="confirm" disabled>Bevestig</button>
-            </menu>
-          </form>
+          <form method="dialog"><h2 id="exchangeTitle">Kaarten teruggeven</h2><p id="exchangeText"></p><div id="exchangeHand" class="hand exchange-hand"></div><menu><button id="exchangeConfirm" class="primary-button" value="confirm" disabled>Bevestig</button></menu></form>
         </dialog>
-
         <dialog id="roundDialog" class="round-dialog">
-          <form method="dialog">
-            <h2 id="roundTitle">Ronde klaar</h2>
-            <div id="resultsList" class="results-list"></div>
-            <menu>
-              <button id="continueButton" class="primary-button" value="continue">Volgende ronde</button>
-            </menu>
-          </form>
+          <form method="dialog"><h2 id="roundTitle">Ronde klaar</h2><div id="resultsList" class="results-list"></div><menu><button id="continueButton" class="primary-button" value="continue">Volgende ronde</button></menu></form>
         </dialog>
       </section>
     </main>
+
+    <main id="multiplayerScreen" class="table-shell" hidden>
+      <section class="game-table" aria-label="Presidenten samen spelen">
+        <div class="topbar">
+          <div><h1>Presidenten</h1><p id="mpRoundLabel">Samen spelen</p></div>
+          <div class="topbar-actions">
+            <span id="connectionBadge" class="connection-badge">Verbinden...</span>
+            <button class="icon-button" type="button" data-go-home title="Terug naar start" aria-label="Terug naar start">←</button>
+            <button class="ghost-button" type="button" data-open-settings>Instellingen</button>
+            <button id="leaveButton" class="ghost-button" type="button">Spel verlaten</button>
+          </div>
+        </div>
+        <div class="players-grid">
+          <article class="opponent opponent-left" id="mp-player-3"></article>
+          <article class="opponent opponent-top" id="mp-player-2"></article>
+          <article class="opponent opponent-right" id="mp-player-1"></article>
+        </div>
+        <section class="human-area" id="mp-player-0">
+          <div class="hand-header">
+            <div class="human-pill"><span id="mpHumanAvatar" class="player-avatar human-avatar">👤</span><h2 id="mpHumanName">Jij</h2><p id="mpHumanRole">Burger</p><span id="mpHumanFinishBadge" class="finish-badge"></span><span id="mpHumanPassBadge" class="pass-badge">Pas</span></div>
+            <div class="personal-pile-wrap"><div id="mpHumanPlayedPile" class="played-pile played-pile-human"></div></div>
+          </div>
+          <div class="hand-row"><div id="mpHand" class="hand" aria-label="Je hand"></div><div id="mpTurnHint" class="turn-hint"></div></div>
+        </section>
+        <div class="controls"><button id="mpPlayButton" class="primary-button" type="button" disabled>Speel</button><button id="mpPassButton" class="secondary-button" type="button" disabled>Pas</button></div>
+        <aside class="activity-panel" aria-live="polite"><div class="pile-title">Verloop</div><ol id="mpActivityLog"></ol></aside>
+        <div class="version-label app-version" aria-label="Versie"></div>
+        <dialog id="mpExchangeDialog" class="exchange-dialog"><h2 id="mpExchangeTitle">Kaarten wisselen</h2><p id="mpExchangeText"></p><div id="mpExchangeHand" class="hand exchange-hand"></div><menu><button id="mpExchangeConfirm" class="primary-button" type="button">Bevestig</button></menu></dialog>
+        <dialog id="mpRoundDialog" class="round-dialog"><h2>Ronde klaar</h2><div id="mpResultsList" class="results-list"></div><p id="mpRoundWaiting" class="dialog-note"></p><menu><button id="mpContinueButton" class="primary-button" type="button">Volgende ronde</button></menu></dialog>
+      </section>
+      <div id="multiplayerLobby" class="lobby-overlay">
+        <section class="lobby-dialog" aria-labelledby="lobbyTitle">
+          <div id="joinPanel">
+            <p class="lobby-kicker">Multiplayer</p><h2 id="lobbyTitle">Samen spelen</h2>
+            <div class="lobby-field"><label for="lobbyName">Jouw naam</label><div class="lobby-setting-row"><input id="lobbyName" type="text" readonly aria-readonly="true"><button id="lobbySettingsButton" class="secondary-button" type="button">Wijzig</button></div></div>
+            <div class="lobby-field"><label for="lobbyBotSkill">Botniveau voor nieuwe kamer</label><select id="lobbyBotSkill"><option value="beginner">Beginner</option><option value="medium">Gemiddeld</option><option value="expert">Expert</option></select></div>
+            <div class="lobby-actions"><button id="createRoomButton" class="primary-button" type="button">Maak een spel</button><span class="lobby-divider">of</span><div class="join-row"><input id="roomCodeInput" class="room-code-input" type="text" maxlength="5" autocapitalize="characters" autocomplete="off" placeholder="Code"><button id="joinRoomButton" class="secondary-button" type="button">Doe mee</button></div></div>
+          </div>
+          <div id="waitingPanel" hidden><p class="lobby-kicker">Kamercode</p><div id="roomCodeLabel" class="room-code">-----</div><h2>Wachten op spelers</h2><div id="lobbyPlayers" class="lobby-players"></div><p id="botFillText" class="lobby-note"></p><button id="startRoomButton" class="primary-button lobby-start" type="button">Start het spel</button><p id="hostWaitingText" class="lobby-note" hidden>De spelleider start het spel.</p></div>
+          <p id="lobbyError" class="lobby-error" role="alert"></p>
+        </section>
+      </div>
+    </main>
+
     <div id="settingsDialog" class="settings-overlay" hidden>
       <form id="settingsForm" class="settings-dialog">
         <h2>Instellingen</h2>
-        <div class="settings-section">
-          <label for="playerNameInput">Jouw naam</label>
-          <input id="playerNameInput" name="playerName" type="text" inputmode="text" enterkeyhint="done" maxlength="18" autocomplete="name" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Jij">
-          <div id="nameKeyboard" class="name-keyboard" aria-label="Naam invoeren"></div>
-        </div>
-        <div class="settings-section">
-          <label for="botSkillSelect">Botniveau</label>
-          <select id="botSkillSelect" name="botSkill">
-            <option value="beginner">Beginner</option>
-            <option value="medium">Gemiddeld</option>
-            <option value="expert">Expert</option>
-          </select>
-        </div>
-        <menu>
-          <button class="secondary-button" type="button" id="settingsCancel">Annuleer</button>
-          <button class="primary-button" type="submit">Opslaan</button>
-        </menu>
+        <div class="settings-section"><label for="playerNameInput">Jouw naam</label><input id="playerNameInput" name="playerName" type="text" inputmode="text" enterkeyhint="done" maxlength="18" autocomplete="name" autocapitalize="words" autocorrect="off" spellcheck="false" placeholder="Jij"><div id="nameKeyboard" class="name-keyboard" aria-label="Naam invoeren"></div></div>
+        <div class="settings-section"><label for="botSkillSelect">Standaard botniveau</label><select id="botSkillSelect" name="botSkill"><option value="beginner">Beginner</option><option value="medium">Gemiddeld</option><option value="expert">Expert</option></select></div>
+        <menu><button class="secondary-button" type="button" id="settingsCancel">Annuleer</button><button class="primary-button" type="submit">Opslaan</button></menu>
       </form>
     </div>
-    <script type="module" src="game.js"></script>
-    <script>
-      if ("serviceWorker" in navigator) {
-        window.addEventListener("load", () => {
-          navigator.serviceWorker.register("service-worker.js");
-        });
-      }
-    </script>
+    <script type="module" src="app.js"></script>
   </body>
 </html>

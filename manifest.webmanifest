@@ -1,7 +1,7 @@
 {
   "name": "Presidenten",
   "short_name": "Presidenten",
-  "description": "Speel Presidenten op iPad.",
+  "description": "Speel Presidenten alleen of samen op iPad.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

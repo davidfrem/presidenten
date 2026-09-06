@@ -1,4 +1,5 @@
 import { bestCards, chooseBotPlay, createDeck, createRoleExchangeItems, isHighestRankPlay, isValidPlay, nextClockwisePlayerWithCards, ranks, sortHand } from "./game.js";
+import { normalizeBotSkill, normalizePlayerName } from "./settings.js";
 
 function assert(condition, message) {
   if (!condition) {
@@ -9,6 +10,9 @@ function assert(condition, message) {
 const deck = createDeck();
 assert(deck.length === 32, "Deck should contain 32 cards.");
 assert(ranks[0] === "7" && ranks.at(-1) === "A", "Rank order should be 7 through A.");
+assert(normalizePlayerName("  Jan   de Vries  ") === "Jan de Vries", "Player names should be trimmed and normalized.");
+assert(normalizePlayerName("12345678901234567890").length === 18, "Player names should be limited to eighteen characters.");
+assert(normalizeBotSkill("normal") === "beginner" && normalizeBotSkill("unknown") === "beginner", "Legacy and invalid bot levels should fall back safely.");
 
 const sevens = deck.filter((card) => card.rank === "7").slice(0, 2);
 const eights = deck.filter((card) => card.rank === "8").slice(0, 2);

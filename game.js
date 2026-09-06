@@ -1,5 +1,8 @@
+import { defaultSettings, loadSettings, normalizeBotSkill } from "./settings.js";
+import { createCardElement, renderPileCards } from "./ui-components.js";
+import { APP_VERSION } from "./version.js";
+
 export const ranks = ["7", "8", "9", "10", "J", "Q", "K", "A"];
-const APP_VERSION = "1.1.1";
 export const suits = [
   { id: "clubs", label: "♣", red: false },
   { id: "diamonds", label: "♦", red: true },
@@ -8,11 +11,6 @@ export const suits = [
 ];
 
 const roleNames = ["President", "Vice-president", "Vice-verliezer", "Verliezer"];
-const SETTINGS_KEY = "presidenten.settings";
-const defaultSettings = {
-  playerName: "Jij",
-  botSkill: "beginner"
-};
 const botNames = ["Sanne", "Daan", "Emma"];
 const playerIcons = ["👤", "🧢", "🎧", "⭐"];
 let settings = { ...defaultSettings };
@@ -244,55 +242,8 @@ function breaksValuableGroup(cards, handGroups) {
 let state = null;
 let selectedIds = new Set();
 let exchange = null;
-
-function loadSettings() {
-  if (typeof localStorage === "undefined") return { ...defaultSettings };
-
-  try {
-    const stored = JSON.parse(localStorage.getItem(SETTINGS_KEY) ?? "{}");
-    return normalizeSettings({ ...defaultSettings, ...stored });
-  } catch {
-    return { ...defaultSettings };
-  }
-}
-
-function saveSettings(nextSettings) {
-  settings = normalizeSettings({ ...defaultSettings, ...nextSettings });
-  if (typeof localStorage !== "undefined") {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {
-      // Safari can block storage in some restricted modes; keep the session setting.
-    }
-  }
-}
-
-function hasStoredSettings() {
-  if (typeof localStorage === "undefined") return false;
-
-  try {
-    return localStorage.getItem(SETTINGS_KEY) !== null;
-  } catch {
-    return false;
-  }
-}
-
-function normalizeSettings(nextSettings) {
-  return {
-    playerName: normalizePlayerName(nextSettings.playerName),
-    botSkill: normalizeBotSkill(nextSettings.botSkill)
-  };
-}
-
-function normalizeBotSkill(skill) {
-  if (skill === "normal") return "beginner";
-  return ["beginner", "medium", "expert"].includes(skill) ? skill : defaultSettings.botSkill;
-}
-
-function normalizePlayerName(name) {
-  const clean = String(name ?? "").trim().replace(/\s+/g, " ");
-  return clean || defaultSettings.playerName;
-}
+let soloActive = false;
+let botTimer = null;
 
 function createInitialState() {
   const dealer = Math.floor(Math.random() * 4);
@@ -474,8 +425,12 @@ function advanceTurnAfterAction(playerId, forceTrickWin = false) {
 }
 
 function maybeRunBots() {
-  if (state.awaitingExchange || state.currentPlayerId === null || state.currentPlayerId === 0) return;
-  setTimeout(() => {
+  clearTimeout(botTimer);
+  botTimer = null;
+  if (!soloActive || state.awaitingExchange || state.currentPlayerId === null || state.currentPlayerId === 0) return;
+  botTimer = setTimeout(() => {
+    botTimer = null;
+    if (!soloActive) return;
     const player = state.players[state.currentPlayerId];
     const cards = chooseBotPlay(player, state.currentPlay, state, settings.botSkill);
     if (cards) {
@@ -525,7 +480,7 @@ function renderPlayers() {
       <div class="player-row">
         <span class="player-avatar">${playerIcons[player.id]}</span>
         <div class="player-meta">
-          <span class="player-name">${player.name}</span>
+          <span class="player-name">${escapeHtml(player.name)}</span>
           <span class="player-role">${roundRole ? "Uit" : `${player.role} - ${player.hand.length} kaart${player.hand.length === 1 ? "" : "en"}`}</span>
         </div>
         <span class="turn-badge">Beurt</span>
@@ -568,12 +523,7 @@ function renderHand() {
 }
 
 function renderCard(card) {
-  const button = document.createElement("button");
-  button.type = "button";
-  button.className = `card${card.red ? " red" : ""}`;
-  button.dataset.cardId = card.id;
-  button.innerHTML = `<span class="card-rank">${card.rank}</span><span class="card-suit">${card.suit}</span>`;
-  return button;
+  return createCardElement(card);
 }
 
 function renderPlayedPile(node, player) {
@@ -582,21 +532,17 @@ function renderPlayedPile(node, player) {
     ? new Set(state.currentPlay.cards.map((card) => card.id))
     : new Set();
 
-  node.innerHTML = "";
-  if (!cards.length) return;
-
-  [...cards].reverse().forEach((card) => {
-    const item = document.createElement("span");
-    item.className = `pile-card${card.red ? " red" : ""}`;
-    item.classList.toggle("latest-play", activeIds.has(card.id));
-    item.innerHTML = `<span class="pile-card-rank">${card.rank}</span><span class="pile-card-suit">${card.suit}</span>`;
-    node.append(item);
-  });
+  renderPileCards(node, cards, activeIds);
 }
 
 function renderLog() {
   const log = document.getElementById("activityLog");
-  log.innerHTML = state.log.slice(0, 6).map((item) => `<li>${item}</li>`).join("");
+  log.innerHTML = "";
+  state.log.slice(0, 6).forEach((message) => {
+    const item = document.createElement("li");
+    item.textContent = message;
+    log.append(item);
+  });
 }
 
 function getTurnHint() {
@@ -661,85 +607,21 @@ function showRoundDialog() {
     .map((playerId, index) => `
       <div class="result-row">
         <strong>${roleNames[index]}</strong>
-        <span>${state.players[playerId].name}</span>
+        <span>${escapeHtml(state.players[playerId].name)}</span>
       </div>
     `)
     .join("");
   if (!dialog.open) dialog.showModal();
 }
 
-function showSettingsDialog() {
-  const dialog = document.getElementById("settingsDialog");
-  const playerNameInput = document.getElementById("playerNameInput");
-  playerNameInput.value = settings.playerName === defaultSettings.playerName ? "" : settings.playerName;
-  document.getElementById("botSkillSelect").value = settings.botSkill;
-  dialog.hidden = false;
-  requestAnimationFrame(() => {
-    playerNameInput.focus({ preventScroll: true });
-    playerNameInput.select();
-  });
-}
+let browserGameInitialized = false;
 
-function renderNameKeyboard() {
-  const keyboard = document.getElementById("nameKeyboard");
-  const rows = [
-    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-    ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-    ["Z", "X", "C", "V", "B", "N", "M"],
-    ["Spatie", "Wis"]
-  ];
-  keyboard.innerHTML = "";
-
-  rows.forEach((row) => {
-    const rowNode = document.createElement("div");
-    rowNode.className = "name-key-row";
-    row.forEach((key) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "name-key";
-      button.textContent = key;
-      button.addEventListener("click", () => updateNameFromKey(key));
-      rowNode.append(button);
-    });
-    keyboard.append(rowNode);
-  });
-}
-
-function updateNameFromKey(key) {
-  const input = document.getElementById("playerNameInput");
-  if (key === "Wis") {
-    input.value = input.value.slice(0, -1);
-  } else if (key === "Spatie") {
-    input.value = `${input.value} `;
-  } else if (input.value.length <= input.maxLength - key.length) {
-    input.value = `${input.value}${key}`;
-  }
-
-  input.dispatchEvent(new Event("input", { bubbles: true }));
-  input.focus({ preventScroll: true });
-}
-
-function closeSettingsDialog() {
-  document.getElementById("settingsDialog").hidden = true;
-}
-
-function applySettingsFromForm() {
-  const playerName = document.getElementById("playerNameInput").value;
-  const botSkill = document.getElementById("botSkillSelect").value;
-  saveSettings({ playerName, botSkill });
-
-  if (state?.players?.[0]) {
-    state.players[0].name = settings.playerName;
-  }
-
-  render();
-}
-
-function initBrowserGame() {
-  const shouldAskSettings = !hasStoredSettings();
+export function initBrowserGame() {
+  if (browserGameInitialized) return;
+  browserGameInitialized = true;
   settings = loadSettings();
   state = createInitialState();
-  renderNameKeyboard();
+  soloActive = true;
 
   document.getElementById("playButton").addEventListener("click", () => {
     const cards = state.players[0].hand.filter((card) => selectedIds.has(card.id));
@@ -758,22 +640,6 @@ function initBrowserGame() {
     state = createInitialState();
     document.getElementById("roundDialog").close();
     render();
-    maybeRunBots();
-  });
-
-  document.getElementById("settingsButton").addEventListener("click", () => {
-    showSettingsDialog();
-  });
-
-  document.getElementById("settingsCancel").addEventListener("click", () => {
-    closeSettingsDialog();
-    maybeRunBots();
-  });
-
-  document.getElementById("settingsForm").addEventListener("submit", (event) => {
-    event.preventDefault();
-    applySettingsFromForm();
-    closeSettingsDialog();
     maybeRunBots();
   });
 
@@ -805,14 +671,33 @@ function initBrowserGame() {
     queueChoiceExchange(remaining);
   });
 
-  render();
-  if (shouldAskSettings) {
-    showSettingsDialog();
-  } else {
+  window.addEventListener("presidenten:settings-changed", (event) => {
+    settings = event.detail;
+    if (state?.players?.[0]) state.players[0].name = settings.playerName;
+    render();
     maybeRunBots();
-  }
+  });
+
+  render();
+  maybeRunBots();
 }
 
-if (typeof document !== "undefined") {
-  initBrowserGame();
+export function setBrowserGameActive(active) {
+  soloActive = active;
+  if (!active) {
+    clearTimeout(botTimer);
+    botTimer = null;
+    return;
+  }
+  if (state) maybeRunBots();
+}
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (character) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  })[character]);
 }

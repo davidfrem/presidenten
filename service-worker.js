@@ -1,9 +1,14 @@
-const CACHE_NAME = "presidenten-1.1.1";
+const CACHE_NAME = "presidenten-2.0.0-beta.1";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
+  "./app.js",
   "./game.js",
+  "./multiplayer.js",
+  "./settings.js",
+  "./ui-components.js",
+  "./version.js",
   "./manifest.webmanifest",
   "./icons/icon.svg",
   "./icons/icon-192.png",
@@ -28,16 +33,27 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
-  if (event.request.method !== "GET") return;
+  if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
 
+  if (event.request.mode === "navigate") {
+    const network = fetch(event.request);
+    event.waitUntil(
+      network
+        .then((response) => response.ok && caches.open(CACHE_NAME).then((cache) => cache.put("./index.html", response.clone())))
+        .catch(() => {})
+    );
+    event.respondWith(
+      network.catch(() => caches.match("./index.html"))
+    );
+    return;
+  }
+
+  const network = fetch(event.request).then((response) => {
+    if (response.ok) caches.open(CACHE_NAME).then((cache) => cache.put(event.request, response.clone()));
+    return response;
+  });
+  event.waitUntil(network.catch(() => {}));
   event.respondWith(
-    caches.match(event.request)
-      .then((cached) => cached || fetch(event.request)
-        .then((response) => {
-          const copy = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, copy));
-          return response;
-        })
-        .catch(() => caches.match("./index.html")))
+    caches.match(event.request).then((cached) => cached || network)
   );
 });

@@ -19,7 +19,7 @@ import {
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "0.0.0.0";
-const defaultPage = process.env.DEFAULT_APP === "multiplayer" ? "/multiplayer.html" : "/index.html";
+const defaultPage = "/index.html";
 const rooms = new Map();
 const sessions = new Map();
 const botTimers = new Map();
@@ -29,8 +29,13 @@ const publicFiles = new Set([
   "/index.html",
   "/multiplayer.html",
   "/styles.css",
+  "/app.js",
   "/game.js",
   "/multiplayer.js",
+  "/settings.js",
+  "/ui-components.js",
+  "/version.js",
+  "/multiplayer-engine.js",
   "/service-worker.js",
   "/manifest.webmanifest"
 ]);
@@ -127,6 +132,7 @@ async function handleMessage(socket, message) {
   if (message.type === "confirmBest") return playerAction(room, session, () => confirmBestExchange(room.game, session.seat));
   if (message.type === "chooseReturn") return playerAction(room, session, () => chooseReturnExchange(room.game, session.seat, message.cardIds || []));
   if (message.type === "nextRound") return nextRound(room, session);
+  if (message.type === "updateName") return updatePlayerName(room, session, message.name);
   throw new Error("Onbekende actie.");
 }
 
@@ -213,6 +219,15 @@ async function nextRound(room, session) {
   await persistRoom(room);
   broadcastRoom(room);
   scheduleBots(room);
+}
+
+async function updatePlayerName(room, session, requestedName) {
+  const name = normalizeName(requestedName);
+  const human = room.humans.find((item) => item.token === session.token);
+  if (human) human.name = name;
+  if (room.game?.players[session.seat]) room.game.players[session.seat].name = name;
+  await persistRoom(room);
+  broadcastRoom(room);
 }
 
 function scheduleBots(room) {
@@ -341,7 +356,7 @@ function send(socket, payload) {
 }
 
 server.listen(port, host, () => {
-  console.log(`Presidenten server: http://localhost:${port} (${roomStore.mode})`);
+  console.log(`Presidenten server: http://localhost:${server.address().port} (${roomStore.mode})`);
 });
 
 process.on("SIGTERM", () => {

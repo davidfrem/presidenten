@@ -67,7 +67,7 @@ gcloud run deploy presidenten-multiplayer \
   --memory 512Mi \
   --cpu 1 \
   --session-affinity \
-  --set-env-vars ROOM_TTL_HOURS=24,DEFAULT_APP=multiplayer,FIRESTORE_DATABASE_ID=presidenten
+  --set-env-vars ROOM_TTL_HOURS=24,FIRESTORE_DATABASE_ID=presidenten,ALLOWED_ORIGINS=https://presidenten.fremeijer.net
 ```
 
 Cloud Run toont daarna een HTTPS-adres dat eindigt op `run.app`. Open dat adres op meerdere

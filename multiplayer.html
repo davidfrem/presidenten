@@ -2,119 +2,12 @@
 <html lang="nl">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-    <meta name="theme-color" content="#0d6a35">
-    <meta name="apple-mobile-web-app-capable" content="yes">
-    <meta name="apple-mobile-web-app-title" content="Presidenten Samen">
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta http-equiv="refresh" content="0;url=./?mode=samen">
     <title>Presidenten samen spelen</title>
-    <link rel="manifest" href="manifest.webmanifest">
-    <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
-    <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
-    <link rel="stylesheet" href="styles.css">
   </head>
   <body>
-    <main class="table-shell">
-      <section class="game-table" aria-label="Presidenten multiplayer speeltafel">
-        <div class="topbar">
-          <div>
-            <h1>Presidenten</h1>
-            <p id="mpRoundLabel">Samen spelen</p>
-          </div>
-          <div class="topbar-actions">
-            <span id="connectionBadge" class="connection-badge">Verbinden...</span>
-            <button id="leaveButton" class="ghost-button" type="button">Spel verlaten</button>
-          </div>
-        </div>
-
-        <div class="players-grid">
-          <article class="opponent opponent-left" id="mp-player-3"></article>
-          <article class="opponent opponent-top" id="mp-player-2"></article>
-          <article class="opponent opponent-right" id="mp-player-1"></article>
-        </div>
-
-        <section class="human-area" id="mp-player-0">
-          <div class="hand-header">
-            <div class="human-pill">
-              <span id="mpHumanAvatar" class="player-avatar human-avatar">👤</span>
-              <h2 id="mpHumanName">Jij</h2>
-              <p id="mpHumanRole">Burger</p>
-              <span id="mpHumanFinishBadge" class="finish-badge"></span>
-              <span id="mpHumanPassBadge" class="pass-badge">Pas</span>
-            </div>
-            <div class="personal-pile-wrap">
-              <div id="mpHumanPlayedPile" class="played-pile played-pile-human"></div>
-            </div>
-          </div>
-          <div class="hand-row">
-            <div id="mpHand" class="hand" aria-label="Je hand"></div>
-            <div id="mpTurnHint" class="turn-hint"></div>
-          </div>
-        </section>
-
-        <div class="controls">
-          <button id="mpPlayButton" class="primary-button" type="button" disabled>Speel</button>
-          <button id="mpPassButton" class="secondary-button" type="button" disabled>Pas</button>
-        </div>
-
-        <aside class="activity-panel" aria-live="polite">
-          <div class="pile-title">Verloop</div>
-          <ol id="mpActivityLog"></ol>
-        </aside>
-        <div class="version-label">1.2.0-beta.0</div>
-
-        <dialog id="mpExchangeDialog" class="exchange-dialog">
-          <h2 id="mpExchangeTitle">Kaarten wisselen</h2>
-          <p id="mpExchangeText"></p>
-          <div id="mpExchangeHand" class="hand exchange-hand"></div>
-          <menu>
-            <button id="mpExchangeConfirm" class="primary-button" type="button">Bevestig</button>
-          </menu>
-        </dialog>
-
-        <dialog id="mpRoundDialog" class="round-dialog">
-          <h2>Ronde klaar</h2>
-          <div id="mpResultsList" class="results-list"></div>
-          <p id="mpRoundWaiting" class="dialog-note"></p>
-          <menu>
-            <button id="mpContinueButton" class="primary-button" type="button">Volgende ronde</button>
-          </menu>
-        </dialog>
-      </section>
-    </main>
-
-    <div id="multiplayerLobby" class="lobby-overlay">
-      <section class="lobby-dialog" aria-labelledby="lobbyTitle">
-        <div id="joinPanel">
-          <p class="lobby-kicker">Multiplayer</p>
-          <h2 id="lobbyTitle">Samen spelen</h2>
-          <div class="lobby-field">
-            <label for="lobbyName">Jouw naam</label>
-            <input id="lobbyName" type="text" maxlength="18" autocomplete="name" autocapitalize="words" placeholder="Jouw naam">
-          </div>
-          <div class="lobby-actions">
-            <button id="createRoomButton" class="primary-button" type="button">Maak een spel</button>
-            <span class="lobby-divider">of</span>
-            <div class="join-row">
-              <input id="roomCodeInput" class="room-code-input" type="text" maxlength="5" autocapitalize="characters" autocomplete="off" placeholder="Code">
-              <button id="joinRoomButton" class="secondary-button" type="button">Doe mee</button>
-            </div>
-          </div>
-        </div>
-
-        <div id="waitingPanel" hidden>
-          <p class="lobby-kicker">Kamercode</p>
-          <div id="roomCodeLabel" class="room-code">-----</div>
-          <h2>Wachten op spelers</h2>
-          <div id="lobbyPlayers" class="lobby-players"></div>
-          <p id="botFillText" class="lobby-note"></p>
-          <button id="startRoomButton" class="primary-button lobby-start" type="button">Start het spel</button>
-          <p id="hostWaitingText" class="lobby-note" hidden>De spelleider start het spel.</p>
-        </div>
-        <p id="lobbyError" class="lobby-error" role="alert"></p>
-      </section>
-    </div>
-    <script type="module" src="multiplayer.js"></script>
+    <p><a href="./?mode=samen">Samen spelen openen</a></p>
+    <script>location.replace(`./?mode=samen${location.hash}`);</script>
   </body>
 </html>
