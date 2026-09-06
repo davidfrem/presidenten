@@ -12,7 +12,11 @@ export function createRoomStore() {
   if (!useFirestore) return createMemoryRoomStore();
 
   const projectId = process.env.FIRESTORE_PROJECT_ID || process.env.GOOGLE_CLOUD_PROJECT;
-  const firestore = projectId ? new Firestore({ projectId }) : new Firestore();
+  const databaseId = process.env.FIRESTORE_DATABASE_ID;
+  const firestore = new Firestore({
+    ...(projectId ? { projectId } : {}),
+    ...(databaseId ? { databaseId } : {})
+  });
   const collection = firestore.collection("multiplayerRooms");
 
   return {

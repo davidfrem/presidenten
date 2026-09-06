@@ -67,7 +67,7 @@ gcloud run deploy presidenten-multiplayer \
   --memory 512Mi \
   --cpu 1 \
   --session-affinity \
-  --set-env-vars ROOM_TTL_HOURS=24,DEFAULT_APP=multiplayer
+  --set-env-vars ROOM_TTL_HOURS=24,DEFAULT_APP=multiplayer,FIRESTORE_DATABASE_ID=presidenten
 ```
 
 Cloud Run toont daarna een HTTPS-adres dat eindigt op `run.app`. Open dat adres op meerdere
@@ -107,4 +107,5 @@ npm start
 ```
 
 Met de Firestore Emulator kan de cloudopslag lokaal worden getest door
-`FIRESTORE_EMULATOR_HOST` en `FIRESTORE_PROJECT_ID` in te stellen.
+`FIRESTORE_EMULATOR_HOST`, `FIRESTORE_PROJECT_ID` en eventueel
+`FIRESTORE_DATABASE_ID` in te stellen.
