@@ -1,4 +1,5 @@
 export const ranks = ["7", "8", "9", "10", "J", "Q", "K", "A"];
+const APP_VERSION = "v12";
 export const suits = [
   { id: "clubs", label: "♣", red: false },
   { id: "diamonds", label: "♦", red: true },
@@ -397,7 +398,12 @@ function render() {
   renderPlayers();
   renderHand();
   renderLog();
+  renderVersion();
   updateControls();
+}
+
+function renderVersion() {
+  document.getElementById("versionLabel").textContent = APP_VERSION;
 }
 
 function renderPlayers() {
