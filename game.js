@@ -1,5 +1,5 @@
 export const ranks = ["7", "8", "9", "10", "J", "Q", "K", "A"];
-const APP_VERSION = "1.1.0";
+const APP_VERSION = "1.1.1";
 export const suits = [
   { id: "clubs", label: "♣", red: false },
   { id: "diamonds", label: "♦", red: true },
