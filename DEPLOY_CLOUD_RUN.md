@@ -67,7 +67,7 @@ gcloud run deploy presidenten-multiplayer \
   --memory 512Mi \
   --cpu 1 \
   --session-affinity \
-  --set-env-vars ROOM_TTL_HOURS=24,FIRESTORE_DATABASE_ID=presidenten,ALLOWED_ORIGINS=https://presidenten.fremeijer.net
+  '--set-env-vars=^@^ROOM_TTL_HOURS=24@FIRESTORE_DATABASE_ID=presidenten@ALLOWED_ORIGINS=https://presidenten.fremeijer.net,https://samen.presidenten.fremeijer.net'
 ```
 
 Cloud Run toont daarna een HTTPS-adres dat eindigt op `run.app`. Open dat adres op meerdere
@@ -76,6 +76,74 @@ iPads en test eerst een volledig spel. De client herstelt de WebSocketverbinding
 `--max-instances 1` is bewust gekozen: de huidige realtime uitzendingen leven binnen één
 serverinstance. Firestore bewaart wel alle kamerstatus, waardoor een serverherstart kan worden
 hersteld. Voor grotere aantallen gelijktijdige spellen is later een gedeeld pub/sub-kanaal nodig.
+
+### Deployen vanaf deze Mac
+
+De werkende configuratie op de ontwikkel-Mac is:
+
+- Google Cloud-project: `presidenten-multiplayer`
+- account: `davidfre@gmail.com`
+- regio: `europe-west4`
+- Cloud Run-service: `presidenten-multiplayer`
+- serviceaccount: `presidenten-server@presidenten-multiplayer.iam.gserviceaccount.com`
+- Firestore-database-ID: `presidenten`
+- Google Cloud SDK: `/private/tmp/google-cloud-sdk/bin/gcloud`
+- geschikte Python-runtime:
+  `/Users/davidfremeijer/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3`
+
+`gcloud` staat momenteel niet in `PATH`. Stel daarom voor ieder commando `CLOUDSDK_PYTHON`
+in. Dit voorkomt tevens fouten doordat de standaard-Python op deze Mac te oud is voor de SDK.
+
+Controleer vóór een deployment de actieve identiteit en het project:
+
+```sh
+CLOUDSDK_PYTHON=/Users/davidfremeijer/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 \
+  /private/tmp/google-cloud-sdk/bin/gcloud config list --format=json
+```
+
+Deploy vervolgens vanuit de hoofdmap van deze repository:
+
+```sh
+CLOUDSDK_PYTHON=/Users/davidfremeijer/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 \
+  /private/tmp/google-cloud-sdk/bin/gcloud run deploy presidenten-multiplayer \
+  --source . \
+  --region europe-west4 \
+  --allow-unauthenticated \
+  --service-account presidenten-server@presidenten-multiplayer.iam.gserviceaccount.com \
+  --timeout 3600 \
+  --max-instances 1 \
+  --min-instances 0 \
+  --memory 512Mi \
+  --cpu 1 \
+  --session-affinity \
+  '--set-env-vars=^@^ROOM_TTL_HOURS=24@FIRESTORE_DATABASE_ID=presidenten@ALLOWED_ORIGINS=https://presidenten.fremeijer.net,https://samen.presidenten.fremeijer.net' \
+  --project presidenten-multiplayer
+```
+
+De afwijkende `^@^`-notatie is nodig omdat `ALLOWED_ORIGINS` zelf een komma bevat. Zonder
+deze delimiter interpreteert `gcloud` het tweede domein ten onrechte als een nieuwe variabele.
+
+Controleer na afloop de gepubliceerde versie op zowel het Cloud Run-adres als het eigen domein:
+
+```sh
+curl -s https://presidenten-multiplayer-920922567743.europe-west4.run.app/version.js
+curl -s https://samen.presidenten.fremeijer.net/version.js
+```
+
+Beide antwoorden moeten dezelfde `APP_VERSION` tonen als lokaal in `version.js`. Controleer
+bij twijfel ook de actieve revisie en verkeersverdeling:
+
+```sh
+CLOUDSDK_PYTHON=/Users/davidfremeijer/.cache/codex-runtimes/codex-primary-runtime/dependencies/python/bin/python3 \
+  /private/tmp/google-cloud-sdk/bin/gcloud run services describe presidenten-multiplayer \
+  --region europe-west4 \
+  --project presidenten-multiplayer \
+  --format='yaml(status.latestReadyRevisionName,status.traffic,status.url)'
+```
+
+De SDK-map onder `/private/tmp` kan na een herstart of opruimactie verdwenen zijn. Zoek of
+installeer de SDK dan opnieuw en werk het pad in deze handleiding bij. Inloggen kan zo nodig met
+`gcloud auth login`; controleer daarna opnieuw account en project voordat je deployt.
 
 ## 6. Firestore TTL inschakelen
 
