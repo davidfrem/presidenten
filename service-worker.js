@@ -1,4 +1,4 @@
-const CACHE_NAME = "presidenten-2.0.0-beta.2";
+const CACHE_NAME = "presidenten-2.1.0-beta.1";
 const APP_SHELL = [
   "./",
   "./index.html",

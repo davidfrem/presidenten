@@ -65,6 +65,31 @@ const almostOutOpponent = { id: 2, hand: makeHand(["7"]) };
 const expertDefense = chooseBotPlay(expertDefenseHand, { cards: makeHand(["K"]), rankIndex: ranks.indexOf("K") }, { players: [expertDefenseHand, almostOutOpponent] }, "expert");
 assert(expertDefense?.[0].rank === "A", "Expert bot should spend an ace to block an opponent who is almost out.");
 
+const expertPatientHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "10", "J", "Q", "A"])) };
+const safeOpponent = { id: 0, hand: makeHand(["7", "8", "9", "10", "J"]) };
+const patientPlay = chooseBotPlay(expertPatientHand, { cards: makeHand(["K"]), rankIndex: ranks.indexOf("K") }, { players: [safeOpponent, expertPatientHand] }, "expert");
+assert(patientPlay === null, "Expert bot should save an ace instead of spending it without an immediate threat.");
+
+const expertGroupedHand = { id: 1, hand: sortHand(makeHand(["9", "9", "10", "J", "Q", "K", "A"])) };
+const groupPreservingPlay = chooseBotPlay(expertGroupedHand, { cards: makeHand(["8"]), rankIndex: ranks.indexOf("8") }, { players: [safeOpponent, expertGroupedHand] }, "expert");
+assert(groupPreservingPlay?.[0].rank === "10", "Expert bot should avoid breaking a pair when a nearby singleton can be played.");
+
+const expertLowGroupHand = { id: 1, hand: sortHand(makeHand(["7", "7", "9", "10", "J", "K", "A", "A"])) };
+const lowGroupOpening = chooseBotPlay(expertLowGroupHand, null, { players: [safeOpponent, expertLowGroupHand] }, "expert");
+assert(lowGroupOpening.length === 2 && lowGroupOpening.every((card) => card.rank === "7"), "Expert bot should shed a complete low group before opening with aces.");
+
+const countingHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "10", "J", "Q", "K", "A"])), playedPile: [] };
+const countingQueen = deck.find((card) => card.rank === "Q" && !countingHand.hand.some((held) => held.id === card.id));
+const visibleAces = deck.filter((card) => card.rank === "A" && !countingHand.hand.some((held) => held.id === card.id));
+const countingOpponent = { id: 0, hand: makeHand(["7", "8", "9", "10"]), playedPile: [countingQueen, ...visibleAces] };
+const countedKingPlay = chooseBotPlay(
+  countingHand,
+  { playerId: countingOpponent.id, cards: [countingQueen], rankIndex: countingQueen.rankIndex },
+  { players: [countingOpponent, countingHand] },
+  "expert"
+);
+assert(countedKingPlay?.[0].rank === "K", "Expert bot should recognize a king as unbeatable after all opposing aces are visible.");
+
 const observedBot = { id: 1, name: "Daan", role: "Burger", hand: sortHand(makeHand(["7", "8", "A"])), playedPile: makeHand(["9"]) };
 const hiddenOpponent = { id: 2, name: "Sanne", role: "Burger", hand: sortHand(makeHand(["10", "J"])), playedPile: makeHand(["Q"]), finished: false };
 const visibleQueen = hiddenOpponent.playedPile[0];

@@ -244,7 +244,7 @@ function chooseExpertBotPlay(options, currentPlay, context) {
     .map((cards) => ({ cards, score: scoreExpertPlay(cards, currentPlay, context) }))
     .sort((a, b) => b.score - a.score || a.cards[0].rankIndex - b.cards[0].rankIndex || b.cards.length - a.cards.length);
 
-  if (currentPlay && scoredOptions[0].score < -55 && !context.opponentAlmostOut) return null;
+  if (currentPlay && scoredOptions[0].score < 20 && !context.immediateOpponentAlmostOut) return null;
   return scoredOptions[0].cards;
 }
 
@@ -268,31 +268,74 @@ function scoreMediumPlay(cards, currentPlay, context) {
 
 function scoreExpertPlay(cards, currentPlay, context) {
   const rankIndex = cards[0].rankIndex;
-  let score = scoreMediumPlay(cards, currentPlay, context);
+  const originalGroupSize = context.handGroups[cards[0].rank]?.length ?? cards.length;
+  const remainingHand = removeCards(context.observation.ownHand, cards);
+  const remainingGroups = Object.values(groupByRank(remainingHand));
+  const remainingRankCount = remainingGroups.length;
+  const remainingSingles = remainingGroups.filter((group) => group.length === 1).length;
+  const fullGroup = cards.length === originalGroupSize;
+  const unbeatable = isUnbeatablePlay(cards, context.observation.unseenRankCounts);
+  let score = 80;
 
-  if (context.opponentAlmostOut) score += rankIndex * 18;
-  if (context.opponentAlmostOut && currentPlay && cards.length === currentPlay.cards.length) score += 35;
-  if (!currentPlay && context.earlyGame && isHighestRankPlay(cards)) score -= 90;
-  if (!currentPlay && cards.length > 1 && rankIndex < ranks.length - 2) score += 16;
-  if (breaksValuableGroup(cards, context.handGroups)) score -= 14;
+  score += cards.length * 20;
+  score += (ranks.length - 1 - rankIndex) * 4;
+  score -= remainingRankCount * 8;
+  score -= remainingSingles * 3;
+  score += fullGroup ? 25 : -35 * (originalGroupSize - cards.length);
+
+  if (!currentPlay) {
+    score += cards.length * 8;
+    if (fullGroup && cards.length > 1) score += 12;
+  } else {
+    score -= Math.max(0, rankIndex - currentPlay.rankIndex - 1) * 5;
+    if (unbeatable) score += 18;
+  }
+
+  const cardsLeft = context.handSize - cards.length;
+  if (isHighestRankPlay(cards) && cardsLeft > 2) score -= context.earlyGame ? 160 : 100;
+  if (rankIndex === ranks.length - 2 && cardsLeft > 3) score -= 35;
+
+  if (context.opponentAlmostOut) score += rankIndex * 8;
+  if (context.immediateOpponentAlmostOut) {
+    score += rankIndex * 12;
+    if (unbeatable) score += 35;
+  }
+
+  if (cardsLeft <= 3) score += cards.length * 18 + rankIndex * 3;
 
   return score;
 }
 
 function createBotContext(observation) {
   const opponents = observation.players.filter((other) => other.id !== observation.playerId && other.cardCount > 0);
+  const immediateOpponent = nextClockwiseObservedPlayer(observation);
   return {
     handSize: observation.ownHand.length,
     earlyGame: observation.ownHand.length >= 5,
     opponentAlmostOut: opponents.some((other) => other.cardCount <= 2),
+    immediateOpponentAlmostOut: Boolean(immediateOpponent && immediateOpponent.cardCount <= 2),
     handGroups: groupByRank(observation.ownHand),
     observation
   };
 }
 
-function breaksValuableGroup(cards, handGroups) {
-  const group = handGroups[cards[0].rank] ?? [];
-  return group.length > cards.length && cards[0].rankIndex >= ranks.length - 2;
+function nextClockwiseObservedPlayer(observation) {
+  const players = observation.players;
+  const ownIndex = players.findIndex((player) => player.id === observation.playerId);
+  if (ownIndex === -1) return null;
+
+  for (let step = 1; step < players.length; step += 1) {
+    const player = players[(ownIndex - step + players.length) % players.length];
+    if (player.cardCount > 0) return player;
+  }
+  return null;
+}
+
+function isUnbeatablePlay(cards, unseenRankCounts) {
+  const rankIndex = cards[0].rankIndex;
+  return ranks
+    .slice(rankIndex + 1)
+    .every((rank) => (unseenRankCounts[rank] ?? suits.length) < cards.length);
 }
 
 let state = null;
