@@ -7,6 +7,7 @@ import {
   passMultiplayerTurn,
   playMultiplayerCards
 } from "./multiplayer-engine.js";
+import { deserializeRoom, serializeRoom } from "./room-store.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -56,5 +57,19 @@ confirmBestExchange(game, 3);
 chooseReturnExchange(game, 0, presidentReturn);
 assert(game.phase === "playing", "Automatic bot exchange should finish after both humans confirm.");
 assert(game.players.every((player) => player.hand.length === 8), "Role exchange must preserve every hand size.");
+
+const storedRoom = serializeRoom({
+  code: "ABCDE",
+  hostToken: "one",
+  botSkill: "medium",
+  humans,
+  sockets: new Map(),
+  game
+}, new Date("2026-09-06T10:00:00Z"));
+const restoredRoom = deserializeRoom(storedRoom);
+assert(restoredRoom.game.passedPlayerIds instanceof Set, "Restored room state should recreate passed-player sets.");
+assert(restoredRoom.sockets instanceof Map && restoredRoom.sockets.size === 0, "Live sockets must never be persisted.");
+assert(restoredRoom.humans.every((human) => !human.connected), "Restored players should reconnect explicitly.");
+assert(storedRoom.expiresAt > storedRoom.updatedAt, "Stored rooms should receive an expiry time.");
 
 console.log("Multiplayer engine tests passed.");

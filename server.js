@@ -4,6 +4,7 @@ import http from "node:http";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
+import { createRoomStore } from "./room-store.js";
 import {
   beginNextMultiplayerRound,
   chooseReturnExchange,
@@ -18,9 +19,12 @@ import {
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "0.0.0.0";
+const defaultPage = process.env.DEFAULT_APP === "multiplayer" ? "/multiplayer.html" : "/index.html";
 const rooms = new Map();
 const sessions = new Map();
 const botTimers = new Map();
+const saveQueues = new Map();
+const roomStore = createRoomStore();
 const publicFiles = new Set([
   "/index.html",
   "/multiplayer.html",
@@ -45,11 +49,11 @@ const server = http.createServer((request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || "localhost"}`);
   if (requestUrl.pathname === "/health") {
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
-    response.end(JSON.stringify({ ok: true, rooms: rooms.size }));
+    response.end(JSON.stringify({ ok: true, rooms: rooms.size, persistence: roomStore.mode }));
     return;
   }
 
-  const pathname = requestUrl.pathname === "/" ? "/index.html" : decodeURIComponent(requestUrl.pathname);
+  const pathname = requestUrl.pathname === "/" ? defaultPage : decodeURIComponent(requestUrl.pathname);
   if (!publicFiles.has(pathname) && !pathname.startsWith("/icons/")) {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
     response.end("Niet gevonden");
@@ -75,30 +79,46 @@ const server = http.createServer((request, response) => {
   });
 });
 
-const websocketServer = new WebSocketServer({ server, path: "/multiplayer", maxPayload: 64 * 1024 });
+const websocketServer = new WebSocketServer({
+  server,
+  path: "/multiplayer",
+  maxPayload: 64 * 1024,
+  verifyClient: ({ origin, req }, done) => done(isAllowedOrigin(origin, req.headers.host), 403, "Origin niet toegestaan")
+});
 
 websocketServer.on("connection", (socket) => {
-  socket.on("message", (rawMessage) => {
+  socket.isAlive = true;
+  socket.on("pong", () => { socket.isAlive = true; });
+  socket.on("message", async (rawMessage) => {
     try {
       const message = JSON.parse(rawMessage.toString());
-      handleMessage(socket, message);
+      await handleMessage(socket, message);
     } catch (error) {
       send(socket, { type: "error", message: error.message || "Ongeldig verzoek." });
     }
   });
 
-  socket.on("close", () => disconnect(socket));
+  socket.on("close", () => disconnect(socket).catch((error) => console.error("Disconnect opslaan mislukt", error)));
   send(socket, { type: "connected" });
 });
 
-function handleMessage(socket, message) {
+const heartbeat = setInterval(() => {
+  websocketServer.clients.forEach((socket) => {
+    if (!socket.isAlive) return socket.terminate();
+    socket.isAlive = false;
+    socket.ping();
+  });
+}, 30_000);
+heartbeat.unref();
+
+async function handleMessage(socket, message) {
   if (message.type === "createRoom") return createRoom(socket, message);
   if (message.type === "joinRoom") return joinRoom(socket, message);
   if (message.type === "reconnect") return reconnect(socket, message);
 
   const session = sessions.get(socket);
   if (!session) throw new Error("Maak eerst een kamer of neem deel.");
-  const room = rooms.get(session.roomCode);
+  const room = await getRoom(session.roomCode);
   if (!room) throw new Error("Deze kamer bestaat niet meer.");
 
   if (message.type === "startGame") return startGame(room, session);
@@ -110,9 +130,9 @@ function handleMessage(socket, message) {
   throw new Error("Onbekende actie.");
 }
 
-function createRoom(socket, message) {
-  disconnect(socket);
-  const code = createRoomCode();
+async function createRoom(socket, message) {
+  await disconnect(socket);
+  const code = await createRoomCode();
   const token = crypto.randomUUID();
   const human = { seat: 0, token, name: normalizeName(message.name), connected: true };
   const room = {
@@ -125,14 +145,15 @@ function createRoom(socket, message) {
   };
   rooms.set(code, room);
   sessions.set(socket, { roomCode: code, token, seat: 0 });
+  await persistRoom(room);
   send(socket, { type: "joined", code, token, seat: 0 });
   broadcastRoom(room);
 }
 
-function joinRoom(socket, message) {
-  disconnect(socket);
+async function joinRoom(socket, message) {
+  await disconnect(socket);
   const code = String(message.code || "").trim().toUpperCase();
-  const room = rooms.get(code);
+  const room = await getRoom(code);
   if (!room) throw new Error("Kamer niet gevonden.");
   if (room.game) throw new Error("Dit spel is al begonnen.");
   if (room.humans.length >= 4) throw new Error("Deze kamer is vol.");
@@ -142,14 +163,15 @@ function joinRoom(socket, message) {
   room.humans.push(human);
   room.sockets.set(token, socket);
   sessions.set(socket, { roomCode: code, token, seat });
+  await persistRoom(room);
   send(socket, { type: "joined", code, token, seat });
   broadcastRoom(room);
 }
 
-function reconnect(socket, message) {
-  disconnect(socket);
+async function reconnect(socket, message) {
+  await disconnect(socket);
   const code = String(message.code || "").trim().toUpperCase();
-  const room = rooms.get(code);
+  const room = await getRoom(code);
   const human = room?.humans.find((item) => item.token === message.token);
   if (!room || !human) throw new Error("Je vorige speelsessie is niet meer beschikbaar.");
   const oldSocket = room.sockets.get(human.token);
@@ -161,29 +183,34 @@ function reconnect(socket, message) {
   room.sockets.set(human.token, socket);
   sessions.set(socket, { roomCode: code, token: human.token, seat: human.seat });
   if (room.game) room.game.players[human.seat].connected = true;
+  await persistRoom(room);
   send(socket, { type: "joined", code, token: human.token, seat: human.seat });
   broadcastRoom(room);
+  scheduleBots(room);
 }
 
-function startGame(room, session) {
+async function startGame(room, session) {
   requireHost(room, session);
   if (room.game) throw new Error("Het spel is al begonnen.");
   room.game = createMultiplayerGame(room.humans, room.botSkill);
+  await persistRoom(room);
   broadcastRoom(room);
   scheduleBots(room);
 }
 
-function playerAction(room, session, action) {
+async function playerAction(room, session, action) {
   if (!room.game) throw new Error("Het spel is nog niet begonnen.");
   action();
+  await persistRoom(room);
   broadcastRoom(room);
   scheduleBots(room);
 }
 
-function nextRound(room, session) {
+async function nextRound(room, session) {
   requireHost(room, session);
   if (!room.game) throw new Error("Het spel is nog niet begonnen.");
   beginNextMultiplayerRound(room.game);
+  await persistRoom(room);
   broadcastRoom(room);
   scheduleBots(room);
 }
@@ -194,11 +221,16 @@ function scheduleBots(room) {
   if (!room.game || room.game.phase !== "playing") return;
   const player = room.game.players[room.game.currentPlayerId];
   if (!player || player.human) return;
-  const timer = setTimeout(() => {
+  const timer = setTimeout(async () => {
     botTimers.delete(room.code);
-    playBotTurn(room.game);
-    broadcastRoom(room);
-    scheduleBots(room);
+    try {
+      playBotTurn(room.game);
+      await persistRoom(room);
+      broadcastRoom(room);
+      scheduleBots(room);
+    } catch (error) {
+      console.error(`Botbeurt in kamer ${room.code} mislukt`, error);
+    }
   }, 650);
   botTimers.set(room.code, timer);
 }
@@ -229,7 +261,7 @@ function roomInfo(room, viewerToken) {
   };
 }
 
-function disconnect(socket) {
+async function disconnect(socket) {
   const session = sessions.get(socket);
   if (!session) return;
   sessions.delete(socket);
@@ -243,6 +275,7 @@ function disconnect(socket) {
     const replacement = room.humans.find((item) => item.connected);
     if (replacement) room.hostToken = replacement.token;
   }
+  await persistRoom(room);
   broadcastRoom(room);
 }
 
@@ -250,13 +283,48 @@ function requireHost(room, session) {
   if (room.hostToken !== session.token) throw new Error("Alleen de spelleider kan dit doen.");
 }
 
-function createRoomCode() {
+async function createRoomCode() {
   const alphabet = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
   let code;
   do {
     code = Array.from({ length: 5 }, () => alphabet[crypto.randomInt(alphabet.length)]).join("");
-  } while (rooms.has(code));
+  } while (rooms.has(code) || await roomStore.exists(code));
   return code;
+}
+
+async function getRoom(code) {
+  if (rooms.has(code)) return rooms.get(code);
+  const room = await roomStore.load(code);
+  if (room) rooms.set(code, room);
+  return room;
+}
+
+async function persistRoom(room) {
+  const previous = saveQueues.get(room.code) || Promise.resolve();
+  const current = previous
+    .catch(() => {})
+    .then(() => roomStore.save(room));
+  saveQueues.set(room.code, current);
+  try {
+    await current;
+  } finally {
+    if (saveQueues.get(room.code) === current) saveQueues.delete(room.code);
+  }
+}
+
+function isAllowedOrigin(origin, requestHost) {
+  if (!origin) return true;
+  try {
+    const originHost = new URL(origin).host;
+    if (originHost === requestHost) return true;
+    const allowed = String(process.env.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean);
+    return allowed.includes(origin);
+  } catch {
+    return false;
+  }
 }
 
 function normalizeName(name) {
@@ -273,7 +341,15 @@ function send(socket, payload) {
 }
 
 server.listen(port, host, () => {
-  console.log(`Presidenten lokaal: http://localhost:${port}`);
+  console.log(`Presidenten server: http://localhost:${port} (${roomStore.mode})`);
+});
+
+process.on("SIGTERM", () => {
+  clearInterval(heartbeat);
+  botTimers.forEach((timer) => clearTimeout(timer));
+  websocketServer.clients.forEach((socket) => socket.close(1012, "Server wordt opnieuw gestart"));
+  server.close(() => process.exit(0));
+  setTimeout(() => process.exit(0), 8_000).unref();
 });
 
 export { server };

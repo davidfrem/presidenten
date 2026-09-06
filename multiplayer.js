@@ -8,6 +8,8 @@ let view = null;
 let selectedIds = new Set();
 let exchangeSelectedIds = new Set();
 let reconnectAttempt = false;
+let shouldReconnect = true;
+let reconnectDelay = 1500;
 
 const elements = {};
 
@@ -44,6 +46,7 @@ function connect() {
   socket = new WebSocket(`${protocol}//${location.host}/multiplayer`);
   setConnection("Verbinden...", false);
   socket.addEventListener("open", () => {
+    reconnectDelay = 1500;
     setConnection("Verbonden", true);
     const saved = loadSession();
     if (saved) {
@@ -54,7 +57,9 @@ function connect() {
   socket.addEventListener("message", (event) => handleMessage(JSON.parse(event.data)));
   socket.addEventListener("close", () => {
     setConnection("Verbinding verbroken", false);
-    setTimeout(connect, 1500);
+    if (!shouldReconnect) return;
+    setTimeout(connect, reconnectDelay);
+    reconnectDelay = Math.min(reconnectDelay * 1.6, 10_000);
   });
   socket.addEventListener("error", () => setConnection("Geen verbinding", false));
 }
@@ -379,6 +384,7 @@ function showError(message) {
 }
 
 function leaveGame() {
+  shouldReconnect = false;
   clearSession();
   socket?.close();
   location.href = "/";
