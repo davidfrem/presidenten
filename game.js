@@ -121,9 +121,64 @@ export function chooseBotPlay(player, currentPlay, gameState = null, skill = "be
   const options = getPlayableOptions(player, currentPlay);
   if (!options.length) return null;
 
-  const context = createBotContext(player, gameState);
+  const observation = createBotObservation(player, currentPlay, gameState);
+  const context = createBotContext(observation);
   if (normalizedSkill === "expert") return chooseExpertBotPlay(options, currentPlay, context);
   return chooseMediumBotPlay(options, currentPlay, context);
+}
+
+export function createBotObservation(player, currentPlay, gameState = null) {
+  const passedPlayerIds = new Set(gameState?.passedPlayerIds ?? []);
+  const publicPlayers = (gameState?.players ?? [player]).map((other) => ({
+    id: other.id,
+    name: other.name,
+    role: other.role,
+    cardCount: other.hand?.length ?? 0,
+    playedPile: [...(other.playedPile ?? [])],
+    finished: Boolean(other.finished),
+    passed: passedPlayerIds.has(other.id)
+  }));
+  const playedCards = uniqueCards([
+    ...publicPlayers.flatMap((other) => other.playedPile),
+    ...(currentPlay?.cards ?? [])
+  ]);
+  const ownHand = [...player.hand];
+
+  return {
+    playerId: player.id,
+    ownHand,
+    players: publicPlayers,
+    playedCards,
+    currentPlay: currentPlay
+      ? {
+          playerId: currentPlay.playerId ?? null,
+          rankIndex: currentPlay.rankIndex,
+          count: currentPlay.cards.length,
+          cards: [...currentPlay.cards]
+        }
+      : null,
+    currentPlayerId: gameState?.currentPlayerId ?? null,
+    lastPlayPlayerId: gameState?.lastPlayPlayerId ?? null,
+    finishOrder: [...(gameState?.finishOrder ?? [])],
+    unseenRankCounts: countUnseenRanks([...ownHand, ...playedCards])
+  };
+}
+
+function uniqueCards(cards) {
+  const seen = new Set();
+  return cards.filter((card) => {
+    if (seen.has(card.id)) return false;
+    seen.add(card.id);
+    return true;
+  });
+}
+
+function countUnseenRanks(knownCards) {
+  const counts = Object.fromEntries(ranks.map((rank) => [rank, suits.length]));
+  uniqueCards(knownCards).forEach((card) => {
+    if (card.rank in counts) counts[card.rank] = Math.max(0, counts[card.rank] - 1);
+  });
+  return counts;
 }
 
 function chooseBeginnerBotPlay(player, currentPlay) {
@@ -224,13 +279,14 @@ function scoreExpertPlay(cards, currentPlay, context) {
   return score;
 }
 
-function createBotContext(player, gameState) {
-  const opponents = gameState?.players?.filter((other) => other.id !== player.id && other.hand.length > 0) ?? [];
+function createBotContext(observation) {
+  const opponents = observation.players.filter((other) => other.id !== observation.playerId && other.cardCount > 0);
   return {
-    handSize: player.hand.length,
-    earlyGame: player.hand.length >= 5,
-    opponentAlmostOut: opponents.some((other) => other.hand.length <= 2),
-    handGroups: groupByRank(player.hand)
+    handSize: observation.ownHand.length,
+    earlyGame: observation.ownHand.length >= 5,
+    opponentAlmostOut: opponents.some((other) => other.cardCount <= 2),
+    handGroups: groupByRank(observation.ownHand),
+    observation
   };
 }
 

@@ -1,4 +1,4 @@
-import { bestCards, chooseBotPlay, createDeck, createRoleExchangeItems, isHighestRankPlay, isValidPlay, nextClockwisePlayerWithCards, ranks, sortHand } from "./game.js";
+import { bestCards, chooseBotPlay, createBotObservation, createDeck, createRoleExchangeItems, isHighestRankPlay, isValidPlay, nextClockwisePlayerWithCards, ranks, sortHand } from "./game.js";
 import { normalizeBotSkill, normalizePlayerName } from "./settings.js";
 
 function assert(condition, message) {
@@ -64,5 +64,28 @@ const expertDefenseHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "10",
 const almostOutOpponent = { id: 2, hand: makeHand(["7"]) };
 const expertDefense = chooseBotPlay(expertDefenseHand, { cards: makeHand(["K"]), rankIndex: ranks.indexOf("K") }, { players: [expertDefenseHand, almostOutOpponent] }, "expert");
 assert(expertDefense?.[0].rank === "A", "Expert bot should spend an ace to block an opponent who is almost out.");
+
+const observedBot = { id: 1, name: "Daan", role: "Burger", hand: sortHand(makeHand(["7", "8", "A"])), playedPile: makeHand(["9"]) };
+const hiddenOpponent = { id: 2, name: "Sanne", role: "Burger", hand: sortHand(makeHand(["10", "J"])), playedPile: makeHand(["Q"]), finished: false };
+const visibleQueen = hiddenOpponent.playedPile[0];
+const observation = createBotObservation(
+  observedBot,
+  { playerId: hiddenOpponent.id, cards: [visibleQueen], rankIndex: visibleQueen.rankIndex },
+  {
+    players: [observedBot, hiddenOpponent],
+    currentPlayerId: observedBot.id,
+    lastPlayPlayerId: hiddenOpponent.id,
+    passedPlayerIds: new Set([hiddenOpponent.id]),
+    finishOrder: []
+  }
+);
+
+assert(observation.players.every((player) => !("hand" in player)), "Bot observation must never expose opponent hands.");
+assert(observation.players.find((player) => player.id === hiddenOpponent.id).cardCount === 2, "Bot observation should expose opponent card counts.");
+assert(observation.players.find((player) => player.id === hiddenOpponent.id).passed, "Bot observation should expose public pass state.");
+assert(observation.playedCards.length === 2, "A current play already present in a pile must not be counted twice.");
+assert(observation.unseenRankCounts["7"] === 3 && observation.unseenRankCounts["A"] === 3, "Own cards must be removed from unseen rank counts.");
+assert(observation.unseenRankCounts["9"] === 3 && observation.unseenRankCounts["Q"] === 3, "Played cards must be removed from unseen rank counts.");
+assert(observation.unseenRankCounts["10"] === 4 && observation.unseenRankCounts["J"] === 4, "Hidden opponent cards must remain unseen.");
 
 console.log("Engine tests passed.");
