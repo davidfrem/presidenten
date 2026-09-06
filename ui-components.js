@@ -9,7 +9,7 @@ export function createCardElement(card) {
 
 export function renderPileCards(node, cards, activeCardIds = new Set()) {
   node.innerHTML = "";
-  [...cards].reverse().forEach((card) => {
+  cards.forEach((card) => {
     const item = document.createElement("span");
     item.className = `pile-card${card.red ? " red" : ""}${activeCardIds.has(card.id) ? " latest-play" : ""}`;
     item.innerHTML = `<span class="pile-card-rank">${card.rank}</span><span class="pile-card-suit">${card.suit}</span>`;
