@@ -4,7 +4,11 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node test-engine.mjs",
-    "start": "python3 -m http.server 4173"
+    "test": "node test-engine.mjs && node test-multiplayer.mjs",
+    "start": "node server.js",
+    "start:static": "python3 -m http.server 4173"
+  },
+  "dependencies": {
+    "ws": "^8.18.3"
   }
 }
