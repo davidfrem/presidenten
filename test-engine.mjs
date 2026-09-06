@@ -49,4 +49,16 @@ assert(exchangeItems[1].fromId === 1 && exchangeItems[1].incomingCards[0].rank =
 const botOpening = chooseBotPlay({ hand: sortHand(makeHand(["7", "8", "8", "9", "J", "Q", "K", "A"])) }, null);
 assert(botOpening.length === 2 && botOpening.every((card) => card.rank === "8"), "Bot should open with a low pair when available.");
 
+const botAceHeavyOpeningHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "10", "J", "K", "A", "A"])) };
+const mediumOpening = chooseBotPlay(botAceHeavyOpeningHand, null, { players: [botAceHeavyOpeningHand] }, "medium");
+assert(!mediumOpening.every((card) => card.rank === "A"), "Medium bot should not open with aces early when lower options exist.");
+
+const expertOpening = chooseBotPlay(botAceHeavyOpeningHand, null, { players: [botAceHeavyOpeningHand] }, "expert");
+assert(!expertOpening.every((card) => card.rank === "A"), "Expert bot should not open with aces early when lower options exist.");
+
+const expertDefenseHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "10", "J", "A"])) };
+const almostOutOpponent = { id: 2, hand: makeHand(["7"]) };
+const expertDefense = chooseBotPlay(expertDefenseHand, { cards: makeHand(["K"]), rankIndex: ranks.indexOf("K") }, { players: [expertDefenseHand, almostOutOpponent] }, "expert");
+assert(expertDefense?.[0].rank === "A", "Expert bot should spend an ace to block an opponent who is almost out.");
+
 console.log("Engine tests passed.");

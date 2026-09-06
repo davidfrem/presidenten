@@ -1,5 +1,5 @@
 export const ranks = ["7", "8", "9", "10", "J", "Q", "K", "A"];
-const APP_VERSION = "v12";
+const APP_VERSION = "1.1.0";
 export const suits = [
   { id: "clubs", label: "♣", red: false },
   { id: "diamonds", label: "♦", red: true },
@@ -11,7 +11,7 @@ const roleNames = ["President", "Vice-president", "Vice-verliezer", "Verliezer"]
 const SETTINGS_KEY = "presidenten.settings";
 const defaultSettings = {
   playerName: "Jij",
-  botSkill: "normal"
+  botSkill: "beginner"
 };
 const botNames = ["Sanne", "Daan", "Emma"];
 const playerIcons = ["👤", "🧢", "🎧", "⭐"];
@@ -116,7 +116,19 @@ function groupByRank(hand) {
   }, {});
 }
 
-export function chooseBotPlay(player, currentPlay) {
+export function chooseBotPlay(player, currentPlay, gameState = null, skill = "beginner") {
+  const normalizedSkill = normalizeBotSkill(skill);
+  if (normalizedSkill === "beginner") return chooseBeginnerBotPlay(player, currentPlay);
+
+  const options = getPlayableOptions(player, currentPlay);
+  if (!options.length) return null;
+
+  const context = createBotContext(player, gameState);
+  if (normalizedSkill === "expert") return chooseExpertBotPlay(options, currentPlay, context);
+  return chooseMediumBotPlay(options, currentPlay, context);
+}
+
+function chooseBeginnerBotPlay(player, currentPlay) {
   const groups = Object.values(groupByRank(player.hand));
   if (!currentPlay) {
     const duplicateOpenings = groups
@@ -148,6 +160,85 @@ export function chooseBotPlay(player, currentPlay) {
   if (finishingPlay) return finishingPlay;
 
   return options[0];
+}
+
+function getPlayableOptions(player, currentPlay) {
+  return Object.values(groupByRank(player.hand))
+    .flatMap((group) => {
+      const plays = [];
+      const maxSize = currentPlay ? currentPlay.cards.length : group.length;
+      for (let size = 1; size <= Math.min(group.length, maxSize); size += 1) {
+        const cards = group.slice(0, size);
+        if (isValidPlay(cards, currentPlay)) plays.push(cards);
+      }
+      return plays;
+    })
+    .sort((a, b) => a[0].rankIndex - b[0].rankIndex || a.length - b.length);
+}
+
+function chooseMediumBotPlay(options, currentPlay, context) {
+  const finishingPlay = options.find((cards) => cards.length === context.handSize);
+  if (finishingPlay) return finishingPlay;
+
+  return bestScoredPlay(options, (cards) => scoreMediumPlay(cards, currentPlay, context));
+}
+
+function chooseExpertBotPlay(options, currentPlay, context) {
+  const finishingPlay = options.find((cards) => cards.length === context.handSize);
+  if (finishingPlay) return finishingPlay;
+
+  const scoredOptions = options
+    .map((cards) => ({ cards, score: scoreExpertPlay(cards, currentPlay, context) }))
+    .sort((a, b) => b.score - a.score || a.cards[0].rankIndex - b.cards[0].rankIndex || b.cards.length - a.cards.length);
+
+  if (currentPlay && scoredOptions[0].score < -55 && !context.opponentAlmostOut) return null;
+  return scoredOptions[0].cards;
+}
+
+function bestScoredPlay(options, scorePlay) {
+  return options
+    .map((cards) => ({ cards, score: scorePlay(cards) }))
+    .sort((a, b) => b.score - a.score || a.cards[0].rankIndex - b.cards[0].rankIndex || b.cards.length - a.cards.length)[0].cards;
+}
+
+function scoreMediumPlay(cards, currentPlay, context) {
+  const rankIndex = cards[0].rankIndex;
+  let score = (ranks.length - rankIndex) * 10;
+
+  if (!currentPlay) score += cards.length > 1 ? 18 : 0;
+  if (isHighestRankPlay(cards) && context.handSize > cards.length + 2) score -= 130;
+  if (rankIndex === ranks.length - 2 && context.earlyGame) score -= 22;
+  if (context.handSize <= 3) score += rankIndex * 5;
+
+  return score;
+}
+
+function scoreExpertPlay(cards, currentPlay, context) {
+  const rankIndex = cards[0].rankIndex;
+  let score = scoreMediumPlay(cards, currentPlay, context);
+
+  if (context.opponentAlmostOut) score += rankIndex * 18;
+  if (context.opponentAlmostOut && currentPlay && cards.length === currentPlay.cards.length) score += 35;
+  if (!currentPlay && context.earlyGame && isHighestRankPlay(cards)) score -= 90;
+  if (!currentPlay && cards.length > 1 && rankIndex < ranks.length - 2) score += 16;
+  if (breaksValuableGroup(cards, context.handGroups)) score -= 14;
+
+  return score;
+}
+
+function createBotContext(player, gameState) {
+  const opponents = gameState?.players?.filter((other) => other.id !== player.id && other.hand.length > 0) ?? [];
+  return {
+    handSize: player.hand.length,
+    earlyGame: player.hand.length >= 5,
+    opponentAlmostOut: opponents.some((other) => other.hand.length <= 2),
+    handGroups: groupByRank(player.hand)
+  };
+}
+
+function breaksValuableGroup(cards, handGroups) {
+  const group = handGroups[cards[0].rank] ?? [];
+  return group.length > cards.length && cards[0].rankIndex >= ranks.length - 2;
 }
 
 let state = null;
@@ -189,8 +280,13 @@ function hasStoredSettings() {
 function normalizeSettings(nextSettings) {
   return {
     playerName: normalizePlayerName(nextSettings.playerName),
-    botSkill: nextSettings.botSkill === "normal" ? "normal" : defaultSettings.botSkill
+    botSkill: normalizeBotSkill(nextSettings.botSkill)
   };
+}
+
+function normalizeBotSkill(skill) {
+  if (skill === "normal") return "beginner";
+  return ["beginner", "medium", "expert"].includes(skill) ? skill : defaultSettings.botSkill;
 }
 
 function normalizePlayerName(name) {
@@ -381,7 +477,7 @@ function maybeRunBots() {
   if (state.awaitingExchange || state.currentPlayerId === null || state.currentPlayerId === 0) return;
   setTimeout(() => {
     const player = state.players[state.currentPlayerId];
-    const cards = chooseBotPlay(player, state.currentPlay);
+    const cards = chooseBotPlay(player, state.currentPlay, state, settings.botSkill);
     if (cards) {
       playCards(player.id, cards);
     } else {
