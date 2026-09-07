@@ -1,2 +1,4 @@
 node_modules/
 .DS_Store
+AGENTS.md
+DEPLOY_CLOUD_RUN.md
