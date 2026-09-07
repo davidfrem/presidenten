@@ -696,6 +696,11 @@ button:disabled {
   opacity: 0.45;
 }
 
+button.card:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
 .activity-panel {
   left: 24px;
   bottom: 38px;
