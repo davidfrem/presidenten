@@ -51,12 +51,15 @@ function waitFor(client, predicate, timeout = 10_000) {
 const externalUrl = process.env.TEST_WS_URL;
 const child = externalUrl ? null : spawn(process.execPath, ["server.js"], {
   cwd: import.meta.dirname,
-  env: { ...process.env, HOST: "127.0.0.1", PORT: "0" },
+  env: { ...process.env, HOST: "127.0.0.1", PORT: "0", DISCONNECT_GRACE_MS: "400" },
   stdio: ["ignore", "pipe", "inherit"]
 });
 
 let first;
 let second;
+let third;
+let fourth;
+let reconnectedFourth;
 try {
   const port = child ? await waitForServer(child) : null;
   const url = externalUrl || `ws://127.0.0.1:${port}/multiplayer`;
@@ -70,17 +73,60 @@ try {
   await waitFor(second, (message) => message.type === "joined");
   await waitFor(first, (message) => message.type === "lobby" && message.players?.length === 2);
 
-  first.socket.send(JSON.stringify({ type: "startGame" }));
-  const started = await waitFor(first, (message) => message.type === "state");
+  second.socket.send(JSON.stringify({ type: "leaveRoom" }));
+  await waitFor(second, (message) => message.type === "left");
+  await waitFor(first, (message) => message.type === "lobby" && message.players?.length === 1);
+
+  second = await connect(url);
+  second.socket.send(JSON.stringify({ type: "joinRoom", code: joinedFirst.code, name: "Lisa" }));
+  await waitFor(second, (message) => message.type === "joined");
+  await waitFor(first, (message) => message.type === "lobby" && message.players?.length === 2);
+
+  first.socket.send(JSON.stringify({ type: "leaveRoom" }));
+  await waitFor(first, (message) => message.type === "left");
+  await waitFor(second, (message) => message.type === "lobby" && message.room?.isHost && message.players?.length === 1);
+
+  third = await connect(url);
+  third.socket.send(JSON.stringify({ type: "joinRoom", code: joinedFirst.code, name: "Sam" }));
+  const joinedThird = await waitFor(third, (message) => message.type === "joined");
+  await waitFor(second, (message) => message.type === "lobby" && message.players?.length === 2);
+
+  fourth = await connect(url);
+  fourth.socket.send(JSON.stringify({ type: "joinRoom", code: joinedFirst.code, name: "Noor" }));
+  const joinedFourth = await waitFor(fourth, (message) => message.type === "joined");
+  await waitFor(second, (message) => message.type === "lobby" && message.players?.length === 3);
+
+  second.socket.send(JSON.stringify({ type: "startGame" }));
+  const started = await waitFor(second, (message) => message.type === "state");
   assert(started.players.length === 4 && started.hand.length === 8, "Het online spel moet vier plaatsen en acht eigen kaarten tonen.");
 
   second.socket.send(JSON.stringify({ type: "updateName", name: "Lies" }));
-  const renamed = await waitFor(first, (message) => message.type === "state" && message.players.some((player) => player.name === "Lies"));
-  assert(renamed.players[1].name === "Lies", "Een naamswijziging moet naar alle spelers worden uitgezonden.");
+  const renamed = await waitFor(second, (message) => message.type === "state" && message.players.some((player) => player.name === "Lies"));
+  assert(renamed.players.some((player) => player.name === "Lies"), "Een naamswijziging moet naar alle spelers worden uitgezonden.");
+
+  third.socket.send(JSON.stringify({ type: "leaveRoom" }));
+  await waitFor(third, (message) => message.type === "left");
+  await waitFor(second, (message) => message.type === "state" && message.players.some((player) => player.id === joinedThird.seat && !player.human));
+
+  fourth.socket.close();
+  await waitFor(second, (message) => message.type === "state" && message.players.some((player) => player.id === joinedFourth.seat && !player.connected));
+
+  reconnectedFourth = await connect(url);
+  reconnectedFourth.socket.send(JSON.stringify({ type: "reconnect", code: joinedFourth.code, token: joinedFourth.token }));
+  await waitFor(reconnectedFourth, (message) => message.type === "joined");
+  await waitFor(second, (message) => message.type === "state" && message.players.some((player) => player.id === joinedFourth.seat && player.connected));
+
+  reconnectedFourth.socket.close();
+  await waitFor(second, (message) => message.type === "state" && message.players.some((player) => player.id === joinedFourth.seat && !player.connected));
+  const takenOver = await waitFor(second, (message) => message.type === "state" && message.players.some((player) => player.id === joinedFourth.seat && !player.human), 3_000);
+  assert(takenOver.players.find((player) => player.id === joinedFourth.seat).connected, "Een bot moet de plek van een langdurig offline speler overnemen.");
 
   console.log("Multiplayer server integration tests passed.");
 } finally {
   first?.socket.close();
   second?.socket.close();
+  third?.socket.close();
+  fourth?.socket.close();
+  reconnectedFourth?.socket.close();
   child?.kill("SIGTERM");
 }

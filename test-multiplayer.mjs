@@ -5,7 +5,8 @@ import {
   createMultiplayerGame,
   getMultiplayerView,
   passMultiplayerTurn,
-  playMultiplayerCards
+  playMultiplayerCards,
+  replaceMultiplayerHumanWithBot
 } from "./multiplayer-engine.js";
 import { deserializeRoom, serializeRoom } from "./room-store.js";
 
@@ -57,6 +58,20 @@ confirmBestExchange(game, 3);
 chooseReturnExchange(game, 0, presidentReturn);
 assert(game.phase === "playing", "Automatic bot exchange should finish after both humans confirm.");
 assert(game.players.every((player) => player.hand.length === 8), "Role exchange must preserve every hand size.");
+
+const abandonedExchangeGame = createMultiplayerGame(humans, "medium", () => 0.31);
+abandonedExchangeGame.phase = "roundEnd";
+abandonedExchangeGame.finishOrder = [0, 1, 2, 3];
+abandonedExchangeGame.players.forEach((player, index) => {
+  player.role = ["President", "Vice-president", "Vice-verliezer", "Verliezer"][index];
+});
+beginNextMultiplayerRound(abandonedExchangeGame, () => 0.29);
+assert(abandonedExchangeGame.phase === "exchange", "Human role exchange should wait for confirmation.");
+replaceMultiplayerHumanWithBot(abandonedExchangeGame, 3);
+assert(abandonedExchangeGame.phase === "exchange", "The exchange should still wait for the connected president.");
+replaceMultiplayerHumanWithBot(abandonedExchangeGame, 0);
+assert(abandonedExchangeGame.phase === "playing", "Replacing both required humans must finish the exchange automatically.");
+assert(abandonedExchangeGame.players.every((player) => player.hand.length === 8), "Bot takeover during exchange must preserve hand sizes.");
 
 const storedRoom = serializeRoom({
   code: "ABCDE",

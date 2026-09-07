@@ -13,7 +13,8 @@ import {
   getMultiplayerView,
   passMultiplayerTurn,
   playBotTurn,
-  playMultiplayerCards
+  playMultiplayerCards,
+  replaceMultiplayerHumanWithBot
 } from "./multiplayer-engine.js";
 
 const root = path.dirname(fileURLToPath(import.meta.url));
@@ -23,8 +24,10 @@ const defaultPage = "/index.html";
 const rooms = new Map();
 const sessions = new Map();
 const botTimers = new Map();
+const disconnectTimers = new Map();
 const saveQueues = new Map();
 const roomStore = createRoomStore();
+const disconnectGraceMs = positiveNumber(process.env.DISCONNECT_GRACE_MS, 60_000);
 const publicFiles = new Set([
   "/index.html",
   "/multiplayer.html",
@@ -133,11 +136,12 @@ async function handleMessage(socket, message) {
   if (message.type === "chooseReturn") return playerAction(room, session, () => chooseReturnExchange(room.game, session.seat, message.cardIds || []));
   if (message.type === "nextRound") return nextRound(room, session);
   if (message.type === "updateName") return updatePlayerName(room, session, message.name);
+  if (message.type === "leaveRoom") return leaveRoom(socket, room, session);
   throw new Error("Onbekende actie.");
 }
 
 async function createRoom(socket, message) {
-  await disconnect(socket);
+  await leaveCurrentRoom(socket);
   const code = await createRoomCode();
   const token = crypto.randomUUID();
   const human = { seat: 0, token, name: normalizeName(message.name), connected: true };
@@ -157,7 +161,7 @@ async function createRoom(socket, message) {
 }
 
 async function joinRoom(socket, message) {
-  await disconnect(socket);
+  await leaveCurrentRoom(socket);
   const code = String(message.code || "").trim().toUpperCase();
   const room = await getRoom(code);
   if (!room) throw new Error("Kamer niet gevonden.");
@@ -186,9 +190,12 @@ async function reconnect(socket, message) {
     oldSocket.close(1000, "Nieuwe verbinding");
   }
   human.connected = true;
+  clearDisconnectTimer(code, human.token);
   room.sockets.set(human.token, socket);
   sessions.set(socket, { roomCode: code, token: human.token, seat: human.seat });
   if (room.game) room.game.players[human.seat].connected = true;
+  ensureHost(room, human.token);
+  room.humans.filter((item) => !item.connected).forEach((item) => scheduleDisconnectExpiry(room, item));
   await persistRoom(room);
   send(socket, { type: "joined", code, token: human.token, seat: human.seat });
   broadcastRoom(room);
@@ -198,6 +205,9 @@ async function reconnect(socket, message) {
 async function startGame(room, session) {
   requireHost(room, session);
   if (room.game) throw new Error("Het spel is al begonnen.");
+  if (room.humans.some((human) => !human.connected)) {
+    throw new Error("Wacht tot alle spelers weer verbonden zijn of hun plek is vrijgegeven.");
+  }
   room.game = createMultiplayerGame(room.humans, room.botSkill);
   await persistRoom(room);
   broadcastRoom(room);
@@ -228,6 +238,14 @@ async function updatePlayerName(room, session, requestedName) {
   if (room.game?.players[session.seat]) room.game.players[session.seat].name = name;
   await persistRoom(room);
   broadcastRoom(room);
+}
+
+async function leaveRoom(socket, room, session) {
+  send(socket, { type: "left" });
+  sessions.delete(socket);
+  room.sockets.delete(session.token);
+  await abandonHuman(room, session.token);
+  socket.close(1000, "Spel verlaten");
 }
 
 function scheduleBots(room) {
@@ -286,12 +304,85 @@ async function disconnect(socket) {
   if (human) human.connected = false;
   room.sockets.delete(session.token);
   if (room.game) room.game.players[session.seat].connected = false;
-  if (room.hostToken === session.token) {
-    const replacement = room.humans.find((item) => item.connected);
-    if (replacement) room.hostToken = replacement.token;
-  }
+  ensureHost(room);
   await persistRoom(room);
   broadcastRoom(room);
+  if (human) scheduleDisconnectExpiry(room, human);
+}
+
+async function leaveCurrentRoom(socket) {
+  const session = sessions.get(socket);
+  if (!session) return;
+  sessions.delete(socket);
+  const room = rooms.get(session.roomCode);
+  if (!room) return;
+  room.sockets.delete(session.token);
+  await abandonHuman(room, session.token);
+}
+
+async function abandonHuman(room, token) {
+  const index = room.humans.findIndex((human) => human.token === token);
+  if (index === -1) return;
+  const [human] = room.humans.splice(index, 1);
+  clearDisconnectTimer(room.code, token);
+  room.sockets.delete(token);
+  if (room.game) replaceMultiplayerHumanWithBot(room.game, human.seat);
+  ensureHost(room);
+
+  if (!room.humans.length) {
+    clearRoomTimers(room.code);
+    rooms.delete(room.code);
+    await roomStore.delete(room.code);
+    return;
+  }
+
+  await persistRoom(room);
+  broadcastRoom(room);
+  scheduleBots(room);
+}
+
+function scheduleDisconnectExpiry(room, human) {
+  clearDisconnectTimer(room.code, human.token);
+  const timer = setTimeout(async () => {
+    disconnectTimers.delete(disconnectTimerKey(room.code, human.token));
+    const current = room.humans.find((item) => item.token === human.token);
+    if (!current || current.connected) return;
+    try {
+      await abandonHuman(room, human.token);
+    } catch (error) {
+      console.error(`Offline speler in kamer ${room.code} vervangen mislukt`, error);
+    }
+  }, disconnectGraceMs);
+  disconnectTimers.set(disconnectTimerKey(room.code, human.token), timer);
+}
+
+function clearDisconnectTimer(code, token) {
+  const key = disconnectTimerKey(code, token);
+  clearTimeout(disconnectTimers.get(key));
+  disconnectTimers.delete(key);
+}
+
+function disconnectTimerKey(code, token) {
+  return `${code}:${token}`;
+}
+
+function clearRoomTimers(code) {
+  clearTimeout(botTimers.get(code));
+  botTimers.delete(code);
+  [...disconnectTimers.keys()]
+    .filter((key) => key.startsWith(`${code}:`))
+    .forEach((key) => {
+      clearTimeout(disconnectTimers.get(key));
+      disconnectTimers.delete(key);
+    });
+}
+
+function ensureHost(room, preferredToken = null) {
+  const currentHost = room.humans.find((human) => human.token === room.hostToken);
+  if (currentHost?.connected) return;
+  const preferred = room.humans.find((human) => human.token === preferredToken && human.connected);
+  const connected = preferred || room.humans.find((human) => human.connected);
+  room.hostToken = connected?.token ?? currentHost?.token ?? room.humans[0]?.token ?? null;
 }
 
 function requireHost(room, session) {
@@ -351,6 +442,11 @@ function normalizeSkill(skill) {
   return ["beginner", "medium", "expert"].includes(skill) ? skill : "beginner";
 }
 
+function positiveNumber(value, fallback) {
+  const number = Number(value);
+  return Number.isFinite(number) && number >= 0 ? number : fallback;
+}
+
 function send(socket, payload) {
   if (socket.readyState === 1) socket.send(JSON.stringify(payload));
 }
@@ -362,6 +458,7 @@ server.listen(port, host, () => {
 process.on("SIGTERM", () => {
   clearInterval(heartbeat);
   botTimers.forEach((timer) => clearTimeout(timer));
+  disconnectTimers.forEach((timer) => clearTimeout(timer));
   websocketServer.clients.forEach((socket) => socket.close(1012, "Server wordt opnieuw gestart"));
   server.close(() => process.exit(0));
   setTimeout(() => process.exit(0), 8_000).unref();

@@ -213,24 +213,41 @@ function createExchange(highPlayer, lowPlayer, count) {
 }
 
 function advanceExchange(game) {
-  if (!game.currentExchange) game.currentExchange = game.exchangeQueue.shift() ?? null;
-  const exchange = game.currentExchange;
-  if (!exchange) {
-    game.phase = "playing";
-    log(game, `${game.players[game.currentPlayerId].name} komt uit als verliezer.`);
-    return;
-  }
-  if (!exchange.bestConfirmed || !exchange.returnCardIds) return;
+  while (game.phase === "exchange") {
+    if (!game.currentExchange) game.currentExchange = game.exchangeQueue.shift() ?? null;
+    const exchange = game.currentExchange;
+    if (!exchange) {
+      game.phase = "playing";
+      log(game, `${game.players[game.currentPlayerId].name} komt uit als verliezer.`);
+      return;
+    }
 
-  const high = game.players[exchange.highPlayerId];
-  const low = game.players[exchange.lowPlayerId];
-  const outgoing = high.hand.filter((card) => exchange.returnCardIds.includes(card.id));
-  const incoming = low.hand.filter((card) => exchange.bestCardIds.includes(card.id));
-  transfer(high, low, outgoing);
-  transfer(low, high, incoming);
-  log(game, `${high.name} en ${low.name} wisselen ${exchange.count} kaart${exchange.count > 1 ? "en" : ""}.`);
-  game.currentExchange = null;
-  advanceExchange(game);
+    const high = game.players[exchange.highPlayerId];
+    const low = game.players[exchange.lowPlayerId];
+    if (!low.human) exchange.bestConfirmed = true;
+    if (!high.human && !exchange.returnCardIds) {
+      exchange.returnCardIds = worstCards(high.hand, exchange.count).map((card) => card.id);
+    }
+    if (!exchange.bestConfirmed || !exchange.returnCardIds) return;
+
+    const outgoing = high.hand.filter((card) => exchange.returnCardIds.includes(card.id));
+    const incoming = low.hand.filter((card) => exchange.bestCardIds.includes(card.id));
+    transfer(high, low, outgoing);
+    transfer(low, high, incoming);
+    log(game, `${high.name} en ${low.name} wisselen ${exchange.count} kaart${exchange.count > 1 ? "en" : ""}.`);
+    game.currentExchange = null;
+  }
+}
+
+export function replaceMultiplayerHumanWithBot(game, playerId) {
+  const player = game.players[playerId];
+  if (!player || !player.human) return false;
+  player.human = false;
+  player.connected = true;
+  player.token = null;
+  log(game, `${player.name} wordt vervangen door een bot.`);
+  if (game.phase === "exchange") advanceExchange(game);
+  return true;
 }
 
 export function confirmBestExchange(game, playerId) {

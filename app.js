@@ -58,11 +58,13 @@ async function startMultiplayer() {
   updateModeLabels();
 }
 
-function requestHome() {
+async function requestHome() {
   if (activeMode === "multiplayer" && multiplayerModule?.hasActiveRoom()) {
     if (!window.confirm("Wil je het huidige samenspel verlaten?")) return;
   }
-  if (activeMode === "multiplayer") multiplayerModule?.stopMultiplayer({ clearStoredSession: true });
+  if (activeMode === "multiplayer") {
+    await multiplayerModule?.stopMultiplayer({ clearStoredSession: true, notifyServer: true });
+  }
   if (activeMode === "solo") setBrowserGameActive(false);
   setScreen("home");
   updateModeLabels();

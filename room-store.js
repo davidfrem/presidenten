@@ -36,6 +36,9 @@ export function createRoomStore() {
     },
     async save(room) {
       await collection.doc(room.code).set(serializeRoom(room));
+    },
+    async delete(code) {
+      await collection.doc(code).delete();
     }
   };
 }
@@ -49,7 +52,8 @@ function createMemoryRoomStore() {
     async load() {
       return null;
     },
-    async save() {}
+    async save() {},
+    async delete() {}
   };
 }
 

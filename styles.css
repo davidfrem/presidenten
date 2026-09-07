@@ -764,6 +764,37 @@ dialog menu {
   padding: 0;
 }
 
+.dialog-status {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.dialog-status .multiplayer-connection {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.multiplayer-error {
+  min-height: 20px;
+  margin-top: 12px;
+  color: #ffb3b3;
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.game-error {
+  position: absolute;
+  right: 24px;
+  bottom: 86px;
+  z-index: 9;
+  max-width: 360px;
+  text-align: right;
+}
+
 .settings-overlay {
   position: fixed;
   inset: 0;
@@ -1025,9 +1056,6 @@ dialog menu {
 .lobby-error {
   min-height: 20px;
   margin-top: 12px;
-  color: #ffb3b3;
-  font-size: 13px;
-  font-weight: 800;
 }
 
 @media (max-width: 900px) {

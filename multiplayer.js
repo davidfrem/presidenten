@@ -15,6 +15,8 @@ let shouldReconnect = true;
 let reconnectDelay = 1500;
 let initialized = false;
 let onLeave = () => {};
+let actionPending = false;
+let resolveLeaveAck = null;
 
 const elements = {};
 
@@ -27,7 +29,7 @@ export function initMultiplayer(options = {}) {
   }
   initialized = true;
   [
-    "connectionBadge", "leaveButton", "multiplayerLobby", "joinPanel", "waitingPanel", "lobbyName",
+    "connectionBadge", "leaveButton", "lobbyLeaveButton", "multiplayerLobby", "joinPanel", "waitingPanel", "lobbyName",
     "lobbyBotSkill", "lobbySettingsButton", "roomCodeInput", "createRoomButton", "joinRoomButton", "roomCodeLabel", "lobbyPlayers",
     "botFillText", "startRoomButton", "hostWaitingText", "lobbyError", "mpRoundLabel", "mpHumanAvatar", "mpHumanName",
     "mpHumanRole", "mpHumanFinishBadge", "mpHumanPassBadge", "mpHumanPlayedPile", "mpHand",
@@ -43,13 +45,13 @@ export function initMultiplayer(options = {}) {
   elements.createRoomButton.addEventListener("click", () => sendLobbyAction("createRoom"));
   elements.joinRoomButton.addEventListener("click", () => sendLobbyAction("joinRoom"));
   elements.lobbySettingsButton.addEventListener("click", () => window.dispatchEvent(new Event("presidenten:open-settings")));
-  elements.startRoomButton.addEventListener("click", () => send({ type: "startGame" }));
-  elements.leaveButton.addEventListener("click", leaveGame);
+  elements.startRoomButton.addEventListener("click", () => sendAction({ type: "startGame" }));
+  document.querySelectorAll("[data-multiplayer-leave]").forEach((button) => button.addEventListener("click", leaveGame));
   elements.mpPlayButton.addEventListener("click", playSelectedCards);
   elements.mpPassButton.addEventListener("click", () => {
-    if (!selectedIds.size) send({ type: "pass" });
+    if (!selectedIds.size) sendAction({ type: "pass" });
   });
-  elements.mpContinueButton.addEventListener("click", () => send({ type: "nextRound" }));
+  elements.mpContinueButton.addEventListener("click", () => sendAction({ type: "nextRound" }));
   elements.mpExchangeConfirm.addEventListener("click", confirmExchange);
   window.addEventListener("presidenten:settings-changed", (event) => {
     applyLobbySettings(event.detail);
@@ -65,6 +67,7 @@ function connect() {
   currentSocket.addEventListener("open", () => {
     reconnectDelay = 1500;
     setConnection("Verbonden", true);
+    showError("");
     const saved = loadSession();
     if (saved) {
       reconnectAttempt = true;
@@ -75,6 +78,10 @@ function connect() {
   currentSocket.addEventListener("close", () => {
     if (socket === currentSocket) socket = null;
     setConnection("Verbinding verbroken", false);
+    actionPending = false;
+    if (view) renderGame();
+    if (resolveLeaveAck) resolveLeaveAck();
+    else showError("Verbinding verbroken. Er wordt opnieuw verbinding gemaakt.");
     if (!shouldReconnect) return;
     setTimeout(connect, reconnectDelay);
     reconnectDelay = Math.min(reconnectDelay * 1.6, 10_000);
@@ -83,6 +90,10 @@ function connect() {
 }
 
 function handleMessage(message) {
+  if (message.type === "left") {
+    resolveLeaveAck?.();
+    return;
+  }
   if (message.type === "joined") {
     reconnectAttempt = false;
     saveSession({ code: message.code, token: message.token });
@@ -90,18 +101,22 @@ function handleMessage(message) {
   }
   if (message.type === "lobby") return renderLobby(message);
   if (message.type === "state") {
+    actionPending = false;
+    showError("");
     view = message;
     elements.multiplayerLobby.hidden = true;
     renderGame();
     return;
   }
   if (message.type === "error") {
+    actionPending = false;
     if (reconnectAttempt) {
       reconnectAttempt = false;
       clearSession();
       elements.joinPanel.hidden = false;
       elements.waitingPanel.hidden = true;
     }
+    if (view) renderGame();
     showError(message.message);
   }
 }
@@ -113,7 +128,7 @@ function sendLobbyAction(type) {
   if (type === "joinRoom" && elements.roomCodeInput.value.length !== 5) {
     return showError("Vul de kamercode van vijf tekens in.");
   }
-  send({
+  sendAction({
     type,
     name,
     code: elements.roomCodeInput.value,
@@ -122,6 +137,7 @@ function sendLobbyAction(type) {
 }
 
 function renderLobby(message) {
+  actionPending = false;
   view = null;
   elements.multiplayerLobby.hidden = false;
   elements.joinPanel.hidden = true;
@@ -146,7 +162,9 @@ function renderLobby(message) {
     ? `${botCount} lege ${botCount === 1 ? "plek wordt" : "plekken worden"} gevuld door bots.`
     : "Alle vier de spelers zijn aanwezig.";
   elements.startRoomButton.hidden = !message.room.isHost;
+  elements.startRoomButton.disabled = actionPending;
   elements.hostWaitingText.hidden = message.room.isHost;
+  elements.lobbyLeaveButton.textContent = "Spel verlaten";
   showError("");
 }
 
@@ -247,8 +265,8 @@ function renderHand() {
 function renderControls() {
   const myTurn = view.phase === "playing" && view.currentPlayerId === view.viewerId;
   const selectedCards = view.hand.filter((card) => selectedIds.has(card.id));
-  elements.mpPlayButton.disabled = !myTurn || !isValidSelection(selectedCards, view.currentPlay);
-  elements.mpPassButton.disabled = !myTurn || !view.currentPlay || selectedIds.size > 0;
+  elements.mpPlayButton.disabled = actionPending || !myTurn || !isValidSelection(selectedCards, view.currentPlay);
+  elements.mpPassButton.disabled = actionPending || !myTurn || !view.currentPlay || selectedIds.size > 0;
   elements.mpTurnHint.textContent = !myTurn ? "" : !view.currentPlay
     ? `${view.players[view.viewerId].name} komt uit`
     : `Speel ${view.currentPlay.cards.length} hoger of pas`;
@@ -293,7 +311,7 @@ function renderExchange() {
       elements.mpExchangeHand.append(button);
     });
     elements.mpExchangeConfirm.textContent = "Geef af";
-    elements.mpExchangeConfirm.disabled = false;
+    elements.mpExchangeConfirm.disabled = actionPending;
   } else {
     elements.mpExchangeTitle.textContent = "Kaarten teruggeven";
     elements.mpExchangeText.textContent = `Kies ${prompt.count} kaart${prompt.count > 1 ? "en" : ""} voor ${prompt.otherName}.`;
@@ -308,7 +326,7 @@ function renderExchange() {
       elements.mpExchangeHand.append(button);
     });
     elements.mpExchangeConfirm.textContent = "Bevestig";
-    elements.mpExchangeConfirm.disabled = exchangeSelectedIds.size !== prompt.count;
+    elements.mpExchangeConfirm.disabled = actionPending || exchangeSelectedIds.size !== prompt.count;
   }
   if (!elements.mpExchangeDialog.open) elements.mpExchangeDialog.showModal();
 }
@@ -330,21 +348,22 @@ function renderRoundEnd() {
     elements.mpResultsList.append(row);
   });
   elements.mpContinueButton.hidden = !view.room.isHost;
+  elements.mpContinueButton.disabled = actionPending;
   elements.mpRoundWaiting.textContent = view.room.isHost ? "" : "De spelleider begint de volgende ronde.";
   if (!elements.mpRoundDialog.open) elements.mpRoundDialog.showModal();
 }
 
 function confirmExchange() {
   const prompt = view.exchangePrompt;
-  if (prompt.type === "forcedBest") send({ type: "confirmBest" });
+  if (prompt.type === "forcedBest") sendAction({ type: "confirmBest" });
   if (prompt.type === "chooseReturn") {
-    send({ type: "chooseReturn", cardIds: [...exchangeSelectedIds] });
+    sendAction({ type: "chooseReturn", cardIds: [...exchangeSelectedIds] });
     exchangeSelectedIds = new Set();
   }
 }
 
 function playSelectedCards() {
-  send({ type: "play", cardIds: [...selectedIds] });
+  sendAction({ type: "play", cardIds: [...selectedIds] });
   selectedIds = new Set();
 }
 
@@ -370,17 +389,30 @@ function makeBadge(className, text) {
 }
 
 function setConnection(text, connected) {
-  elements.connectionBadge.textContent = text;
+  document.querySelectorAll(".multiplayer-connection").forEach((node) => { node.textContent = text; });
   elements.connectionBadge.classList.toggle("is-connected", connected);
 }
 
 function send(payload) {
-  if (socket?.readyState !== WebSocket.OPEN) return showError("De server is niet verbonden.");
+  if (socket?.readyState !== WebSocket.OPEN) {
+    showError("De server is niet verbonden.");
+    return false;
+  }
   socket.send(JSON.stringify(payload));
+  return true;
+}
+
+function sendAction(payload) {
+  if (actionPending) return false;
+  showError("");
+  if (!send(payload)) return false;
+  actionPending = true;
+  if (view) renderGame();
+  return true;
 }
 
 function showError(message) {
-  elements.lobbyError.textContent = message;
+  document.querySelectorAll(".multiplayer-error").forEach((node) => { node.textContent = message; });
 }
 
 function leaveGame() {
@@ -421,20 +453,46 @@ export function hasActiveRoom() {
   return Boolean(view || loadSession());
 }
 
-export function stopMultiplayer({ clearStoredSession = false } = {}) {
+export async function stopMultiplayer({ clearStoredSession = false, notifyServer = false } = {}) {
   shouldReconnect = false;
+  setLeavePending(true);
+  if (notifyServer && loadSession() && socket?.readyState === WebSocket.OPEN) {
+    await new Promise((resolve) => {
+      const timer = setTimeout(resolve, 1200);
+      resolveLeaveAck = () => {
+        clearTimeout(timer);
+        resolve();
+      };
+      send({ type: "leaveRoom" });
+    });
+    resolveLeaveAck = null;
+  }
   if (clearStoredSession) clearSession();
   socket?.close();
   socket = null;
   view = null;
   selectedIds = new Set();
   exchangeSelectedIds = new Set();
+  actionPending = false;
+  setLeavePending(false);
+  if (elements.mpExchangeDialog?.open) elements.mpExchangeDialog.close();
+  if (elements.mpRoundDialog?.open) elements.mpRoundDialog.close();
   if (elements.joinPanel) {
     elements.joinPanel.hidden = false;
     elements.waitingPanel.hidden = true;
     elements.multiplayerLobby.hidden = false;
+    elements.lobbyLeaveButton.textContent = "Terug";
+    elements.lobbyLeaveButton.dataset.defaultText = "Terug";
     showError("");
   }
+}
+
+function setLeavePending(pending) {
+  document.querySelectorAll("[data-multiplayer-leave]").forEach((button) => {
+    button.disabled = pending;
+    if (!button.dataset.defaultText) button.dataset.defaultText = button.textContent;
+    button.textContent = pending ? "Verlaten..." : button.dataset.defaultText;
+  });
 }
 
 function multiplayerSocketUrl() {
