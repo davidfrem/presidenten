@@ -274,6 +274,10 @@ function scoreExpertPlay(cards, currentPlay, context) {
   const remainingRankCount = remainingGroups.length;
   const remainingSingles = remainingGroups.filter((group) => group.length === 1).length;
   const fullGroup = cards.length === originalGroupSize;
+  const acePlay = isHighestRankPlay(cards);
+  const remainingAces = remainingHand.filter((card) => card.rankIndex === ranks.length - 1).length;
+  const remainingLowerRankCount = remainingGroups.filter((group) => group[0].rankIndex < ranks.length - 1).length;
+  const forcedFinishAfterAce = acePlay && remainingRankCount <= 1;
   const unbeatable = isUnbeatablePlay(cards, context.observation.unseenRankCounts);
   let score = 80;
 
@@ -281,18 +285,29 @@ function scoreExpertPlay(cards, currentPlay, context) {
   score += (ranks.length - 1 - rankIndex) * 4;
   score -= remainingRankCount * 8;
   score -= remainingSingles * 3;
-  score += fullGroup ? 25 : -35 * (originalGroupSize - cards.length);
+  if (!acePlay) score += fullGroup ? 25 : -35 * (originalGroupSize - cards.length);
 
   if (!currentPlay) {
     score += cards.length * 8;
-    if (fullGroup && cards.length > 1) score += 12;
+    if (fullGroup && cards.length > 1 && !acePlay) score += 12;
   } else {
     score -= Math.max(0, rankIndex - currentPlay.rankIndex - 1) * 5;
     if (unbeatable) score += 18;
   }
 
   const cardsLeft = context.handSize - cards.length;
-  if (isHighestRankPlay(cards) && cardsLeft > 2) score -= context.earlyGame ? 160 : 100;
+  if (acePlay) {
+    if (forcedFinishAfterAce) {
+      score += 220;
+    } else {
+      const desiredControlCards = Math.min(2, remainingLowerRankCount);
+      const controlDeficit = Math.max(0, desiredControlCards - remainingAces);
+      score -= cards.length * (currentPlay ? 28 : 55);
+      score -= controlDeficit * 45;
+      if (remainingLowerRankCount > 0 && remainingAces === 0) score -= 60;
+      if (!currentPlay && remainingLowerRankCount > 0) score -= 70;
+    }
+  }
   if (rankIndex === ranks.length - 2 && cardsLeft > 3) score -= 35;
 
   if (context.opponentAlmostOut) score += rankIndex * 8;

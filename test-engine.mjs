@@ -78,6 +78,22 @@ const expertLowGroupHand = { id: 1, hand: sortHand(makeHand(["7", "7", "9", "10"
 const lowGroupOpening = chooseBotPlay(expertLowGroupHand, null, { players: [safeOpponent, expertLowGroupHand] }, "expert");
 assert(lowGroupOpening.length === 2 && lowGroupOpening.every((card) => card.rank === "7"), "Expert bot should shed a complete low group before opening with aces.");
 
+const expertControlHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "Q", "A", "A", "A", "A"])) };
+const controlOpening = chooseBotPlay(expertControlHand, null, { players: [safeOpponent, expertControlHand] }, "expert");
+assert(controlOpening?.[0].rank === "7", "Expert bot should lead a low card instead of spending four aces while several low ranks remain.");
+
+const controlAce = chooseBotPlay(
+  expertControlHand,
+  { cards: makeHand(["K"]), rankIndex: ranks.indexOf("K") },
+  { players: [safeOpponent, expertControlHand] },
+  "expert"
+);
+assert(controlAce?.length === 1 && controlAce[0].rank === "A", "Expert bot should split its aces to regain control for low cards.");
+
+const expertForcedFinishHand = { id: 1, hand: sortHand(makeHand(["Q", "A", "A", "A", "A"])) };
+const forcedFinishOpening = chooseBotPlay(expertForcedFinishHand, null, { players: [safeOpponent, expertForcedFinishHand] }, "expert");
+assert(forcedFinishOpening?.length === 4 && forcedFinishOpening.every((card) => card.rank === "A"), "Expert bot may spend all aces when that guarantees it can lead its final rank.");
+
 const countingHand = { id: 1, hand: sortHand(makeHand(["7", "8", "9", "10", "J", "Q", "K", "A"])), playedPile: [] };
 const countingQueen = deck.find((card) => card.rank === "Q" && !countingHand.hand.some((held) => held.id === card.id));
 const visibleAces = deck.filter((card) => card.rank === "A" && !countingHand.hand.some((held) => held.id === card.id));
