@@ -319,6 +319,32 @@ h1 {
   box-shadow: 0 6px 14px rgba(0, 0, 0, 0.22);
 }
 
+#multiplayerScreen .player-avatar[data-controller]::after {
+  position: absolute;
+  right: -4px;
+  bottom: -4px;
+  display: grid;
+  place-items: center;
+  width: 21px;
+  height: 21px;
+  border: 2px solid #f7fbf8;
+  border-radius: 50%;
+  background: #167747;
+  font-size: 11px;
+  line-height: 1;
+  box-shadow: 0 3px 7px rgba(0, 0, 0, 0.32);
+  content: "👤";
+}
+
+#multiplayerScreen .opponent .player-avatar[data-controller] {
+  position: relative;
+}
+
+#multiplayerScreen .player-avatar[data-controller="bot"]::after {
+  background: var(--accent);
+  content: "💻";
+}
+
 .player-meta {
   display: grid;
   gap: 2px;
@@ -1292,6 +1318,7 @@ dialog menu, .settings-dialog menu {
   }
   .opponent .player-row { grid-column: 1; grid-row: 1; padding: 2px 7px; gap: 8px; min-height: 32px; }
   .opponent .player-avatar { width: 26px; height: 26px; flex-basis: 26px; font-size: 15px; border-width: 2px; }
+  #multiplayerScreen .player-avatar[data-controller]::after { right: -4px; bottom: -4px; width: 17px; height: 17px; border-width: 1px; font-size: 10px; }
   .player-name { font-size: 12px; }
   .player-role { font-size: 10px; }
   .opponent .card-backs { grid-column: 1; grid-row: 2; width: 60%; }

@@ -184,7 +184,7 @@ function renderPlayers() {
   const selfRole = currentRoundRole(self.id);
   const selfNode = document.getElementById("mp-player-0");
   selfNode.classList.toggle("is-turn", view.currentPlayerId === self.id);
-  elements.mpHumanAvatar.textContent = playerIcons[self.id];
+  renderPlayerAvatar(elements.mpHumanAvatar, self);
   elements.mpHumanName.textContent = self.name;
   elements.mpHumanRole.textContent = selfRole ? "Uit" : self.role;
   elements.mpHumanFinishBadge.textContent = selfRole || "";
@@ -208,7 +208,7 @@ function renderPlayers() {
     row.className = "player-row";
     const avatar = document.createElement("span");
     avatar.className = "player-avatar";
-    avatar.textContent = playerIcons[player.id];
+    renderPlayerAvatar(avatar, player);
     const meta = document.createElement("div");
     meta.className = "player-meta";
     const name = document.createElement("span");
@@ -242,6 +242,14 @@ function renderPlayers() {
     node.append(wrap);
     renderPile(pile, player);
   });
+}
+
+function renderPlayerAvatar(avatar, player) {
+  const controller = player.human ? "human" : "bot";
+  avatar.textContent = playerIcons[player.id];
+  avatar.dataset.controller = controller;
+  avatar.setAttribute("aria-label", `${player.name}, ${player.human ? "echte speler" : "bot"}`);
+  avatar.title = player.human ? "Echte speler" : "Bot";
 }
 
 function renderHand() {
