@@ -19,7 +19,6 @@ let activeMode = "home";
 let pendingMode = null;
 
 document.querySelectorAll(".app-version").forEach((node) => { node.textContent = APP_VERSION; });
-renderNameKeyboard();
 updateModeLabels();
 initResponsiveTable();
 
@@ -141,36 +140,6 @@ function applySettings(event) {
   if (activeMode === "solo") setBrowserGameActive(true);
   if (nextMode === "solo") startSolo();
   if (nextMode === "multiplayer") startMultiplayer();
-}
-
-function renderNameKeyboard() {
-  const keyboard = document.getElementById("nameKeyboard");
-  const rows = [
-    ["Q", "W", "E", "R", "T", "Y", "U", "I", "O", "P"],
-    ["A", "S", "D", "F", "G", "H", "J", "K", "L"],
-    ["Z", "X", "C", "V", "B", "N", "M"],
-    ["Spatie", "Wis"]
-  ];
-  rows.forEach((keys) => {
-    const row = document.createElement("div");
-    row.className = "name-key-row";
-    keys.forEach((key) => {
-      const button = document.createElement("button");
-      button.type = "button";
-      button.className = "name-key";
-      button.textContent = key;
-      button.addEventListener("click", () => updateNameFromKey(key));
-      row.append(button);
-    });
-    keyboard.append(row);
-  });
-}
-
-function updateNameFromKey(key) {
-  if (key === "Wis") playerNameInput.value = playerNameInput.value.slice(0, -1);
-  else if (key === "Spatie") playerNameInput.value += " ";
-  else if (playerNameInput.value.length < playerNameInput.maxLength) playerNameInput.value += key;
-  playerNameInput.focus({ preventScroll: true });
 }
 
 function updateModeLabels() {

@@ -852,37 +852,6 @@ dialog menu {
   user-select: text;
 }
 
-.name-keyboard {
-  display: grid;
-  gap: 6px;
-}
-
-.name-key-row {
-  display: flex;
-  justify-content: center;
-  gap: 5px;
-}
-
-.name-key {
-  width: 34px;
-  min-height: 34px;
-  border: 1px solid rgba(255, 255, 255, 0.18);
-  border-radius: 7px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
-  font-size: 13px;
-  font-weight: 900;
-  cursor: pointer;
-}
-
-.name-key-row:last-child .name-key:first-child {
-  width: 150px;
-}
-
-.name-key-row:last-child .name-key:last-child {
-  width: 74px;
-}
-
 .exchange-hand {
   justify-content: flex-start;
   margin-top: 14px;
@@ -1263,9 +1232,6 @@ dialog menu, .settings-dialog menu {
 }
 .dialog-status { position: sticky; top: -20px; z-index: 6; padding: 8px 0; background: inherit; }
 .exchange-hand { margin-top: 8px; overflow-x: auto; }
-.name-key { flex: 1 1 0; min-width: 0; width: auto; min-height: 44px; padding: 0; }
-.name-key-row:last-child .name-key:first-child { flex: 3; }
-.name-key-row:last-child .name-key:last-child { flex: 1; }
 .rotate-message { display: none; }
 
 @media (max-width: 1100px), (max-height: 740px) {
@@ -1369,11 +1335,7 @@ dialog menu, .settings-dialog menu {
   .settings-dialog { width: min(680px, 100%); display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 8px 18px; padding: 12px; }
   .settings-dialog h2 { grid-column: 1 / -1; }
   .settings-section { margin-top: 0; }
-  .settings-dialog menu { align-self: end; flex-wrap: wrap; bottom: -12px; }
-  .settings-dialog .settings-section:first-of-type { grid-row: 2 / 4; }
-  .name-keyboard { gap: 3px; }
-  .name-key-row { gap: 3px; }
-  .name-key { min-height: 36px; }
+  .settings-dialog menu { grid-column: 1 / -1; align-self: end; flex-wrap: wrap; bottom: -12px; }
   .mode-header { top: 18px; left: 22px; right: 22px; }
   .mode-choice { grid-template-columns: repeat(2, minmax(0, 260px)); width: min(560px, calc(100% - 40px)); gap: 18px; top: 59%; }
   .mode-button { min-height: 88px; padding: 10px; grid-template-columns: 44px minmax(0, 1fr); column-gap: 10px; }
