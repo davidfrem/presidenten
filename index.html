@@ -63,7 +63,8 @@
           <div class="hand-row"><div id="hand" class="hand" aria-label="Je hand"></div><div id="turnHint" class="turn-hint"></div></div>
         </section>
         <div class="controls"><button id="playButton" class="primary-button" type="button" disabled>Speel</button><button id="passButton" class="secondary-button" type="button" disabled>Pas</button></div>
-        <aside class="activity-panel" aria-live="polite"><div class="pile-title">Verloop</div><ol id="activityLog"></ol></aside>
+        <details class="activity-panel"><summary>Verloop</summary><ol id="activityLog" aria-live="polite"></ol></details>
+        <div class="rotate-message"><strong>Draai je telefoon</strong><p>Speel met je scherm liggend.</p></div>
         <div id="versionLabel" class="version-label app-version" aria-label="Versie"></div>
         <dialog id="exchangeDialog" class="exchange-dialog">
           <form method="dialog"><h2 id="exchangeTitle">Kaarten teruggeven</h2><p id="exchangeText"></p><div id="exchangeHand" class="hand exchange-hand"></div><menu><button id="exchangeConfirm" class="primary-button" value="confirm" disabled>Bevestig</button></menu></form>
@@ -98,7 +99,8 @@
         </section>
         <div class="controls"><button id="mpPlayButton" class="primary-button" type="button" disabled>Speel</button><button id="mpPassButton" class="secondary-button" type="button" disabled>Pas</button></div>
         <p class="multiplayer-error game-error" role="alert"></p>
-        <aside class="activity-panel" aria-live="polite"><div class="pile-title">Verloop</div><ol id="mpActivityLog"></ol></aside>
+        <details class="activity-panel"><summary>Verloop</summary><ol id="mpActivityLog" aria-live="polite"></ol></details>
+        <div class="rotate-message"><strong>Draai je telefoon</strong><p>Speel met je scherm liggend.</p></div>
         <div class="version-label app-version" aria-label="Versie"></div>
         <dialog id="mpExchangeDialog" class="exchange-dialog"><div class="dialog-status"><span class="multiplayer-connection">Verbinden...</span><button class="ghost-button" type="button" data-multiplayer-leave>Spel verlaten</button></div><h2 id="mpExchangeTitle">Kaarten wisselen</h2><p id="mpExchangeText"></p><div id="mpExchangeHand" class="hand exchange-hand"></div><p class="multiplayer-error" role="alert"></p><menu><button id="mpExchangeConfirm" class="primary-button" type="button">Bevestig</button></menu></dialog>
         <dialog id="mpRoundDialog" class="round-dialog"><div class="dialog-status"><span class="multiplayer-connection">Verbinden...</span><button class="ghost-button" type="button" data-multiplayer-leave>Spel verlaten</button></div><h2>Ronde klaar</h2><div id="mpResultsList" class="results-list"></div><p id="mpRoundWaiting" class="dialog-note"></p><p class="multiplayer-error" role="alert"></p><menu><button id="mpContinueButton" class="primary-button" type="button">Volgende ronde</button></menu></dialog>

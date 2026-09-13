@@ -21,6 +21,39 @@ let pendingMode = null;
 document.querySelectorAll(".app-version").forEach((node) => { node.textContent = APP_VERSION; });
 renderNameKeyboard();
 updateModeLabels();
+initResponsiveTable();
+
+function initResponsiveTable() {
+  let pending = false;
+  const observed = new WeakSet();
+  const schedule = () => {
+    if (pending) return;
+    pending = true;
+    requestAnimationFrame(() => {
+      pending = false;
+      document.querySelectorAll(".hand, .played-pile, .card-backs").forEach((fan) => {
+        if (resize && !observed.has(fan)) {
+          resize.observe(fan);
+          observed.add(fan);
+        }
+        const cards = [...fan.children];
+        if (!cards.length || !fan.clientWidth) return;
+        const style = getComputedStyle(fan);
+        const available = fan.clientWidth - parseFloat(style.paddingLeft) - parseFloat(style.paddingRight);
+        const width = cards[0].getBoundingClientRect().width;
+        const step = cards.length > 1
+          ? Math.max(4, Math.min(width * 0.8, (available - width) / (cards.length - 1)))
+          : width;
+        fan.style.setProperty("--fan-margin", `${Math.min(0, step - width)}px`);
+      });
+    });
+  };
+  const resize = typeof ResizeObserver === 'function' ? new ResizeObserver(schedule) : null;
+  new MutationObserver(schedule).observe(document.body, { childList: true, subtree: true });
+  window.addEventListener('resize', schedule);
+  window.visualViewport?.addEventListener('resize', schedule);
+  schedule();
+}
 
 soloModeButton.addEventListener("click", startSolo);
 multiplayerModeButton.addEventListener("click", startMultiplayer);
