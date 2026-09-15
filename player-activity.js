@@ -21,6 +21,9 @@ export function createActivityStore({ firestore = null, now = () => Date.now() }
         endedAt: ended ? new Date(time) : null,
         expiresAt: old?.expiresAt || new Date(time + 90 * DAY)
       };
+      for (const key of ["roundsStarted", "roundsCompleted"]) {
+        if (Number.isInteger(details[key]) && details[key] >= 0) record[key] = Math.max(old?.[key] || 0, details[key]);
+      }
       if (collection) {
         await firestore.runTransaction(async (transaction) => {
           const reference = collection.doc(id);
@@ -111,11 +114,13 @@ export function createPlayerActivity(getRooms = () => []) {
       if (!room.game) return;
       const id = crypto.createHash("sha256").update(human.token).digest("hex");
       const previous = multiplayerUpdates.get(id);
-      if (!ended && previous && Date.now() - previous.time < 25000 && previous.name === human.name) return;
+      const roundsStarted = room.game.round;
+      const roundsCompleted = roundsStarted - 1 + (room.game.phase === "roundEnd" ? 1 : 0);
+      if (!ended && previous && Date.now() - previous.time < 25000 && previous.name === human.name && previous.roundsStarted === roundsStarted && previous.roundsCompleted === roundsCompleted) return;
       if (ended) multiplayerUpdates.delete(id);
-      else multiplayerUpdates.set(id, { time: Date.now(), name: human.name });
+      else multiplayerUpdates.set(id, { time: Date.now(), name: human.name, roundsStarted, roundsCompleted });
       for (const [key, value] of multiplayerUpdates) if (Date.now() - value.time > 120000) multiplayerUpdates.delete(key);
-      return store.touch(id, { name: human.name, mode: "multiplayer", room: room.code, status: room.game.phase || "playing" }, ended)
+      return store.touch(id, { name: human.name, mode: "multiplayer", room: room.code, status: room.game.phase || "playing", roundsStarted, roundsCompleted }, ended)
         .catch(() => console.error("Spelactiviteit opslaan mislukt"));
     },
     async handle(request, response, url) {
@@ -141,9 +146,17 @@ export function createPlayerActivity(getRooms = () => []) {
           }
           const session = solo.get(id);
           if (!session) { send(response, 410, {}); return true; }
-          if (data.end || time - session.seen >= 25000) {
+          const rounds = {};
+          for (const key of ["roundsStarted", "roundsCompleted"]) {
+            if (data[key] !== undefined && (!Number.isInteger(data[key]) || data[key] < 0 || data[key] > 1000000)) throw new Error("Rounds");
+            if (data[key] !== undefined) rounds[key] = data[key];
+          }
+          if (rounds.roundsCompleted > rounds.roundsStarted) throw new Error("Rounds");
+          const changed = Object.keys(rounds).some((key) => session[key] !== rounds[key]);
+          if (data.end || changed || time - session.seen >= 25000) {
             session.seen = time;
-            await store.touch(id, { name: String(data.name || "Jij").trim().slice(0, 30), mode: "solo", room: null, status: "playing" }, Boolean(data.end));
+            Object.assign(session, rounds);
+            await store.touch(id, { name: String(data.name || "Jij").trim().slice(0, 30), mode: "solo", room: null, status: "playing", ...rounds }, Boolean(data.end));
           }
           if (data.end) solo.delete(id);
           send(response, 200, { id });

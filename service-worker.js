@@ -1,4 +1,4 @@
-const CACHE_NAME = "presidenten-2.3.0-beta.8-activity-1";
+const CACHE_NAME = "presidenten-2.3.0-beta.8-activity-2";
 const APP_SHELL = [
   "./",
   "./index.html",

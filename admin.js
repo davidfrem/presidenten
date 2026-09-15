@@ -11,7 +11,7 @@ function renderRows() {
   const query = el("name").value.toLowerCase();
   rows.filter((row) => row.name.toLowerCase().includes(query)).forEach((row) => {
     const tr = document.createElement("tr");
-    [row.name, row.mode === "solo" ? "Alleen" : "Samen", row.room || "-", date(row.startedAt), date(row.lastSeen), date(row.endedAt || (!row.active ? row.lastSeen : null))].forEach((value) => {
+    [row.name, row.mode === "solo" ? "Alleen" : "Samen", row.room || "-", row.roundsCompleted ?? "-", row.roundsStarted ?? "-", date(row.startedAt), date(row.lastSeen), date(row.endedAt || (!row.active ? row.lastSeen : null))].forEach((value) => {
       const td = document.createElement("td"); td.textContent = value; tr.append(td);
     });
     el("history").append(tr);

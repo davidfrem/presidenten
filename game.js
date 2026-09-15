@@ -358,8 +358,15 @@ let selectedIds = new Set();
 let exchange = null;
 let soloActive = false;
 let botTimer = null;
+let soloGameId = 0;
+
+export function getSoloRoundStats() {
+  return state ? { gameId: soloGameId, roundsStarted: state.round,
+    roundsCompleted: state.round - 1 + (state.finishOrder.length === 4 ? 1 : 0) } : null;
+}
 
 function createInitialState() {
+  soloGameId++;
   const dealer = Math.floor(Math.random() * 4);
   const players = createPlayers();
   deal(players);
@@ -560,6 +567,7 @@ function formatCards(cards) {
 }
 
 function render() {
+  window.dispatchEvent(new CustomEvent("presidenten:solo-round-stats", { detail: getSoloRoundStats() }));
   renderPlayers();
   renderHand();
   renderLog();

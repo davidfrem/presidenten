@@ -80,9 +80,11 @@ try {
     const api = await fetch(`http://127.0.0.1:${port}/api/activity/history`);
     assert(api.status === 503, "Beheerdata moet zonder loginconfig gesloten blijven.");
     assert(api.headers.get("cache-control") === "no-store", "Beheerdata mag niet gecachet worden.");
-    const report = await fetch(`http://127.0.0.1:${port}/api/activity/report`, { method: "POST", body: JSON.stringify({ name: "Test" }) });
+    const report = await fetch(`http://127.0.0.1:${port}/api/activity/report`, { method: "POST", body: JSON.stringify({ name: "Test", roundsStarted: 2, roundsCompleted: 1 }) });
     assert(report.ok, "Solo-registratie moet werken.");
     const { id } = await report.json();
+    const invalidRounds = await fetch(`http://127.0.0.1:${port}/api/activity/report`, { method: "POST", body: JSON.stringify({ id, roundsStarted: 1, roundsCompleted: 2 }) });
+    assert(invalidRounds.status === 400, "Meer voltooide dan gestarte rondes moet worden geweigerd.");
     const stop = await fetch(`http://127.0.0.1:${port}/api/activity/report`, { method: "POST", body: JSON.stringify({ id, end: true, name: "Test" }) });
     assert(stop.ok, "Solo-afmelding moet werken.");
   }
