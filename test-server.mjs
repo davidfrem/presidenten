@@ -77,6 +77,14 @@ try {
     assert(canonical.statusCode === 200, "Hoofddomein mag niet omleiden.");
     const health = await request("samen.presidenten.fremeijer.net", "/health");
     assert(health.statusCode === 200, "Healthcheck moet beschikbaar blijven.");
+    const api = await fetch(`http://127.0.0.1:${port}/api/activity/history`);
+    assert(api.status === 503, "Beheerdata moet zonder loginconfig gesloten blijven.");
+    assert(api.headers.get("cache-control") === "no-store", "Beheerdata mag niet gecachet worden.");
+    const report = await fetch(`http://127.0.0.1:${port}/api/activity/report`, { method: "POST", body: JSON.stringify({ name: "Test" }) });
+    assert(report.ok, "Solo-registratie moet werken.");
+    const { id } = await report.json();
+    const stop = await fetch(`http://127.0.0.1:${port}/api/activity/report`, { method: "POST", body: JSON.stringify({ id, end: true, name: "Test" }) });
+    assert(stop.ok, "Solo-afmelding moet werken.");
   }
   const url = externalUrl || `ws://127.0.0.1:${port}/multiplayer`;
   first = await connect(url);

@@ -1,6 +1,7 @@
 import { initBrowserGame, setBrowserGameActive } from "./game.js";
 import { hasStoredSettings, loadSettings, saveSettings } from "./settings.js";
 import { APP_VERSION } from "./version.js";
+import { trackSolo } from "./activity-client.js";
 
 const SESSION_KEY = "presidenten.multiplayerSession";
 const homeScreen = document.getElementById("homeScreen");
@@ -103,6 +104,7 @@ async function requestHome() {
 }
 
 function setScreen(mode) {
+  trackSolo(mode === "solo");
   activeMode = mode;
   homeScreen.hidden = mode !== "home";
   soloScreen.hidden = mode !== "solo";

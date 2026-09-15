@@ -4,13 +4,14 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "test": "node test-engine.mjs && node test-multiplayer.mjs",
+    "test": "node test-engine.mjs && node test-multiplayer.mjs && node test-activity.mjs",
     "test:integration": "node test-server.mjs",
     "start": "node server.js",
     "start:static": "python3 -m http.server 4173"
   },
   "dependencies": {
     "@google-cloud/firestore": "^9.0.1",
+    "google-auth-library": "^11.0.2",
     "ws": "^8.18.3"
   }
 }

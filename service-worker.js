@@ -1,9 +1,10 @@
-const CACHE_NAME = "presidenten-2.3.0-beta.8";
+const CACHE_NAME = "presidenten-2.3.0-beta.8-activity-1";
 const APP_SHELL = [
   "./",
   "./index.html",
   "./styles.css",
   "./app.js",
+  "./activity-client.js",
   "./game.js",
   "./multiplayer.js",
   "./settings.js",
@@ -33,6 +34,8 @@ self.addEventListener("activate", (event) => {
 });
 
 self.addEventListener("fetch", (event) => {
+  const pathname = new URL(event.request.url).pathname;
+  if (pathname.startsWith("/api/") || pathname.startsWith("/admin")) return;
   if (event.request.method !== "GET" || new URL(event.request.url).origin !== self.location.origin) return;
 
   if (event.request.mode === "navigate") {

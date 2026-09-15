@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { WebSocketServer } from "ws";
 import { createRoomStore } from "./room-store.js";
+import { createPlayerActivity } from "./player-activity.js";
 import {
   beginNextMultiplayerRound,
   chooseReturnExchange,
@@ -28,6 +29,13 @@ const botTimers = new Map();
 const disconnectTimers = new Map();
 const saveQueues = new Map();
 const roomStore = createRoomStore();
+const activity = createPlayerActivity(() => [...rooms.values()].filter((room) => room.game).map((room) => ({
+  code: room.code, status: room.game.phase,
+  bots: room.game.players.filter((player) => !player.human).length
+})));
+setInterval(() => {
+  rooms.forEach((room) => room.humans.filter((human) => human.connected).forEach((human) => activity.multiplayer(room, human)));
+}, 30000).unref();
 const disconnectGraceMs = positiveNumber(process.env.DISCONNECT_GRACE_MS, 60_000);
 const publicFiles = new Set([
   "/index.html",
@@ -41,7 +49,8 @@ const publicFiles = new Set([
   "/version.js",
   "/multiplayer-engine.js",
   "/service-worker.js",
-  "/manifest.webmanifest"
+  "/manifest.webmanifest",
+  "/activity-client.js", "/admin.html", "/admin.js", "/admin.css"
 ]);
 
 const mimeTypes = {
@@ -54,7 +63,7 @@ const mimeTypes = {
   ".webmanifest": "application/manifest+json; charset=utf-8"
 };
 
-const server = http.createServer((request, response) => {
+const server = http.createServer(async (request, response) => {
   const requestUrl = new URL(request.url, `http://${request.headers.host || "localhost"}`);
   if (requestUrl.pathname === "/health") {
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
@@ -71,6 +80,7 @@ const server = http.createServer((request, response) => {
     return;
   }
 
+  if (await activity.handle(request, response, requestUrl)) return;
   const pathname = requestUrl.pathname === "/" ? defaultPage : decodeURIComponent(requestUrl.pathname);
   if (!publicFiles.has(pathname) && !pathname.startsWith("/icons/")) {
     response.writeHead(404, { "content-type": "text/plain; charset=utf-8" });
@@ -279,6 +289,7 @@ function scheduleBots(room) {
 }
 
 function broadcastRoom(room) {
+  room.humans.filter((human) => human.connected).forEach((human) => activity.multiplayer(room, human));
   room.humans.forEach((human) => {
     const socket = room.sockets.get(human.token);
     if (!socket || socket.readyState !== 1) return;
@@ -334,6 +345,7 @@ async function abandonHuman(room, token) {
   const index = room.humans.findIndex((human) => human.token === token);
   if (index === -1) return;
   const [human] = room.humans.splice(index, 1);
+  await activity.multiplayer(room, human, true);
   clearDisconnectTimer(room.code, token);
   room.sockets.delete(token);
   if (room.game) replaceMultiplayerHumanWithBot(room.game, human.seat);
