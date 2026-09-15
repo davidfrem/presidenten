@@ -20,6 +20,7 @@ import {
 const root = path.dirname(fileURLToPath(import.meta.url));
 const port = Number(process.env.PORT || 4173);
 const host = process.env.HOST || "0.0.0.0";
+const redirectLegacyDomain = process.env.REDIRECT_LEGACY_DOMAIN === "true";
 const defaultPage = "/index.html";
 const rooms = new Map();
 const sessions = new Map();
@@ -58,6 +59,15 @@ const server = http.createServer((request, response) => {
   if (requestUrl.pathname === "/health") {
     response.writeHead(200, { "content-type": "application/json; charset=utf-8" });
     response.end(JSON.stringify({ ok: true, rooms: rooms.size, persistence: roomStore.mode }));
+    return;
+  }
+
+  if (redirectLegacyDomain && requestUrl.hostname === "samen.presidenten.fremeijer.net") {
+    response.writeHead(308, {
+      location: `https://presidenten.fremeijer.net${requestUrl.pathname}${requestUrl.search}`,
+      "cache-control": "no-store"
+    });
+    response.end();
     return;
   }
 

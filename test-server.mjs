@@ -1,4 +1,5 @@
 import { spawn } from "node:child_process";
+import http from "node:http";
 import WebSocket from "ws";
 
 function assert(condition, message) {
@@ -51,7 +52,7 @@ function waitFor(client, predicate, timeout = 10_000) {
 const externalUrl = process.env.TEST_WS_URL;
 const child = externalUrl ? null : spawn(process.execPath, ["server.js"], {
   cwd: import.meta.dirname,
-  env: { ...process.env, HOST: "127.0.0.1", PORT: "0", DISCONNECT_GRACE_MS: "400" },
+  env: { ...process.env, HOST: "127.0.0.1", PORT: "0", DISCONNECT_GRACE_MS: "400", REDIRECT_LEGACY_DOMAIN: "true" },
   stdio: ["ignore", "pipe", "inherit"]
 });
 
@@ -62,6 +63,21 @@ let fourth;
 let reconnectedFourth;
 try {
   const port = child ? await waitForServer(child) : null;
+  if (child) {
+    const request = (hostname, pathname) => new Promise((resolve, reject) => {
+      http.get({ hostname: "127.0.0.1", port, path: pathname, headers: { host: hostname } }, (response) => {
+        response.resume();
+        resolve(response);
+      }).on("error", reject);
+    });
+    const legacy = await request("samen.presidenten.fremeijer.net", "/?mode=samen&code=ABCDE");
+    assert(legacy.statusCode === 308, "Oud domein moet omleiden.");
+    assert(legacy.headers.location === "https://presidenten.fremeijer.net/?mode=samen&code=ABCDE", "Omleiding moet pad en parameters bewaren.");
+    const canonical = await request("presidenten.fremeijer.net", "/");
+    assert(canonical.statusCode === 200, "Hoofddomein mag niet omleiden.");
+    const health = await request("samen.presidenten.fremeijer.net", "/health");
+    assert(health.statusCode === 200, "Healthcheck moet beschikbaar blijven.");
+  }
   const url = externalUrl || `ws://127.0.0.1:${port}/multiplayer`;
   first = await connect(url);
   first.socket.send(JSON.stringify({ type: "createRoom", name: "David", botSkill: "medium" }));

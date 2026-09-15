@@ -506,9 +506,6 @@ function setLeavePending(pending) {
 }
 
 function multiplayerSocketUrl() {
-  if (location.hostname === "presidenten.fremeijer.net") {
-    return "wss://samen.presidenten.fremeijer.net/multiplayer";
-  }
   const protocol = location.protocol === "https:" ? "wss:" : "ws:";
   return `${protocol}//${location.host}/multiplayer`;
 }
