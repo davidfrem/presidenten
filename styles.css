@@ -383,14 +383,11 @@ h1 {
 }
 
 .finish-badge {
-  position: absolute;
-  left: 50%;
-  bottom: -12px;
+  position: static;
   display: none;
   width: max-content;
-  max-width: calc(100% - 8px);
+  max-width: 100%;
   min-width: 0;
-  transform: translateX(-50%);
   overflow-wrap: anywhere;
   padding: 5px 10px;
   border: 2px solid rgba(255, 255, 255, 0.82);
@@ -1116,7 +1113,11 @@ dialog menu {
 .opponent .player-row { grid-column: 1 / -1; justify-self: start; max-width: 100%; }
 .opponent-right .player-row { justify-self: end; }
 .opponent-top .player-row { justify-self: center; }
-.player-row { min-width: 0; gap: 12px; }
+.player-row { display: inline-grid; grid-template-columns: auto minmax(0, 1fr); min-width: 0; gap: 4px 12px; }
+.player-row .finish-badge { grid-column: 1 / -1; justify-self: center; }
+.human-pill .finish-badge { justify-self: center; margin-top: 4px; }
+.human-area.has-finished { grid-template-rows: minmax(0, 1fr) 0; }
+.human-area.has-finished .hand-row { display: none; }
 .player-meta { min-width: 0; }
 .player-name, .human-pill h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
 .player-name, .player-role, .human-pill h2, .human-pill p {
@@ -1343,7 +1344,8 @@ dialog menu, .settings-dialog menu {
   .turn-badge, .pass-badge, .finish-badge { font-size: 9px; min-width: 0; padding: 2px 5px; border-width: 1px; }
   .turn-badge { top: -4px; right: -4px; }
   .pass-badge { bottom: -4px; right: -4px; }
-  .finish-badge { bottom: -4px; }
+  .opponent.has-finished { grid-template-rows: auto 0 40px; }
+  .opponent.has-finished .card-backs { display: none; }
   .human-area { grid-template-rows: 40px 82px; }
   .human-area .personal-pile-wrap { width: min(250px, 48%); }
   .human-pill { min-height: 34px; padding: 3px 10px 3px 40px; max-width: 190px; }
@@ -1399,6 +1401,7 @@ dialog menu, .settings-dialog menu {
   }
   .human-area { grid-template-rows: 36px 70px; }
   .opponent, .opponent-right, .opponent-top { grid-template-rows: 32px 18px 36px; gap: 2px; }
+  .opponent.has-finished { grid-template-rows: auto 0 36px; }
   .game-table:not(.mode-table) { --back-height: 18px; --pile-height: 36px; }
   .played-pile, .played-pile-human { height: 36px; }
   .pile-card-suit { top: 18px; }

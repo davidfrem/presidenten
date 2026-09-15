@@ -184,6 +184,7 @@ function renderPlayers() {
   const selfRole = currentRoundRole(self.id);
   const selfNode = document.getElementById("mp-player-0");
   selfNode.classList.toggle("is-turn", view.currentPlayerId === self.id);
+  selfNode.classList.toggle("has-finished", Boolean(selfRole));
   renderPlayerAvatar(elements.mpHumanAvatar, self);
   elements.mpHumanName.textContent = self.name;
   elements.mpHumanRole.textContent = selfRole ? "Uit" : self.role;
@@ -200,6 +201,7 @@ function renderPlayers() {
       return;
     }
     const roundRole = currentRoundRole(player.id);
+    node.classList.toggle("has-finished", Boolean(roundRole));
     node.classList.toggle("is-turn", view.currentPlayerId === player.id);
     node.classList.toggle("is-disconnected", player.human && !player.connected);
     node.innerHTML = "";
