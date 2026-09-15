@@ -291,7 +291,7 @@ function renderPile(node, player) {
 
 function renderLog() {
   elements.mpActivityLog.innerHTML = "";
-  view.log.slice(0, 6).forEach((message) => {
+  view.log.forEach((message) => {
     const item = document.createElement("li");
     item.textContent = message;
     elements.mpActivityLog.append(item);

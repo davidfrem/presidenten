@@ -29,6 +29,13 @@ const view = getMultiplayerView(game, 0, { code: "ABCDE", isHost: true });
 assert(view.hand.length === 8, "A player should receive their own hand.");
 assert(view.players.every((player) => !("hand" in player)), "Opponent hands must not be sent in public player data.");
 
+const historyGame = createMultiplayerGame(humans, "medium", () => 0.42);
+historyGame.log = Array.from({ length: 35 }, (_, index) => `Earlier step ${index}`);
+const historyPlayer = historyGame.players[historyGame.currentPlayerId];
+playMultiplayerCards(historyGame, historyPlayer.id, [historyPlayer.hand[0].id]);
+assert(historyGame.log.includes("Earlier step 34"), "A round must retain messages older than the last thirty steps.");
+assert(getMultiplayerView(historyGame, 0, {}).log.length === historyGame.log.length, "The client must receive the complete round history.");
+
 const activePlayer = game.players[game.currentPlayerId];
 const openingCard = activePlayer.hand[0];
 playMultiplayerCards(game, activePlayer.id, [openingCard.id]);
@@ -45,8 +52,10 @@ game.finishOrder = [0, 1, 2, 3];
 game.players.forEach((player, index) => {
   player.role = ["President", "Vice-president", "Vice-verliezer", "Verliezer"][index];
 });
+game.log.unshift("Previous-round marker");
 beginNextMultiplayerRound(game, () => 0.37);
 assert(game.phase === "exchange", "A later round should start with role exchanges.");
+assert(!game.log.includes("Previous-round marker"), "A new round must start with a fresh history.");
 
 const presidentPrompt = getMultiplayerView(game, 0, { code: "ABCDE", isHost: true }).exchangePrompt;
 const loserPrompt = getMultiplayerView(game, 3, { code: "ABCDE", isHost: false }).exchangePrompt;

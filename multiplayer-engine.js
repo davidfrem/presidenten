@@ -51,7 +51,6 @@ function formatCards(cards) {
 
 function log(game, message) {
   game.log.unshift(message);
-  game.log = game.log.slice(0, 30);
 }
 
 function createPlayer(seat, input = {}) {

@@ -652,7 +652,7 @@ function renderPlayedPile(node, player) {
 function renderLog() {
   const log = document.getElementById("activityLog");
   log.innerHTML = "";
-  state.log.slice(0, 6).forEach((message) => {
+  state.log.forEach((message) => {
     const item = document.createElement("li");
     item.textContent = message;
     log.append(item);
