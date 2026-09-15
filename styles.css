@@ -384,10 +384,14 @@ h1 {
 
 .finish-badge {
   position: absolute;
-  left: 58px;
+  left: 50%;
   bottom: -12px;
   display: none;
-  min-width: 92px;
+  width: max-content;
+  max-width: calc(100% - 8px);
+  min-width: 0;
+  transform: translateX(-50%);
+  overflow-wrap: anywhere;
   padding: 5px 10px;
   border: 2px solid rgba(255, 255, 255, 0.82);
   border-radius: 999px;
@@ -1339,7 +1343,7 @@ dialog menu, .settings-dialog menu {
   .turn-badge, .pass-badge, .finish-badge { font-size: 9px; min-width: 0; padding: 2px 5px; border-width: 1px; }
   .turn-badge { top: -4px; right: -4px; }
   .pass-badge { bottom: -4px; right: -4px; }
-  .finish-badge { left: 30px; bottom: -4px; }
+  .finish-badge { bottom: -4px; }
   .human-area { grid-template-rows: 40px 82px; }
   .human-area .personal-pile-wrap { width: min(250px, 48%); }
   .human-pill { min-height: 34px; padding: 3px 10px 3px 40px; max-width: 190px; }
